@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProjectStatus {
+  EN_PROGRESO   @map("En Progreso")
+  EN_REVISION   @map("En Revision")
+  PLANIFICACION
+  COMPLETADO    @map("Completado")
+}
+
+enum TicketStatus {
+  ABIERTO    @map("Abierto")
+  EN_PROCESO @map("En proceso")
+  RESUELTO   @map("Resuelto")
+}
+
+enum TicketPriority {
+  ALTA  @map("Alta")
+  MEDIA @map("Media")
+  BAJA  @map("Baja")
+}
+
+model Project {
+  id            Int           @id @default(autoincrement())
+  name          String        @db.VarChar(120)
+  status        ProjectStatus @default(PLANIFICACION)
+  responsibleId String        @db.Uuid
+  responsible   User          @relation(fields: [responsibleId], references: [id])
+  dateLimit     DateTime
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  tickets       Ticket[]
+
+  @@index([responsibleId])
+  @@index([status])
+  @@map("projects")
+}
+
+model Ticket {
+  id          String         @id @default(uuid()) @db.Uuid
+  projectId   Int
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description String         @db.VarChar(500)
+  status      TicketStatus   @default(ABIERTO)
+  priority    TicketPriority @default(MEDIA)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@index([priority])
+  @@map("tickets")
+}
+
+model User {
+  id        String    @id @default(uuid()) @db.Uuid
+  email     String    @unique @db.VarChar(254)
+  password  String    @db.VarChar(255)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projects  Project[]
+
+  @@map("users")
+}
