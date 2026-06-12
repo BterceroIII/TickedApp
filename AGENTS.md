@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Before any task
+CRITICAL: Read `docs/CONTEXT_APP` at the start of every conversation before taking any action.
+This file contains the project requirements, specifications, Figma prototypes, and evaluation criteria.
+
 ## Repo Shape
 - pnpm workspace, package manager pinned as `pnpm@10.32.1` in root `package.json`.
 - Workspace packages are `apps/*` and `packages/**/*`; `packages/` is currently empty.

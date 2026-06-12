@@ -35,6 +35,7 @@ enum TicketPriority {
 model Project {
   id            Int           @id @default(autoincrement())
   name          String        @db.VarChar(120)
+  description   String?       @db.VarChar(500)
   status        ProjectStatus @default(PLANIFICACION)
   responsibleId String        @db.Uuid
   responsible   User          @relation(fields: [responsibleId], references: [id])
@@ -49,10 +50,11 @@ model Project {
 }
 
 model Ticket {
-  id          String         @id @default(uuid()) @db.Uuid
+  id          String         @id
   projectId   Int
   project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  description String         @db.VarChar(500)
+  title       String         @db.VarChar(150)
+  description String?        @db.VarChar(500)
   status      TicketStatus   @default(ABIERTO)
   priority    TicketPriority @default(MEDIA)
   createdAt   DateTime       @default(now())

@@ -5,6 +5,21 @@
       "type": "remote",
       "url": "https://mcp.prisma.io/mcp",
       "enabled": true
+    },
+    "shadcn": {
+      "type": "local",
+      "command": ["npx", "shadcn@latest", "mcp"],
+      "enabled": true
+    }
+  },
+  "instructions": [
+    ".opencode/rules/shadcn-ui.mdc",
+    ".opencode/rules/context-app.mdc"
+  ],
+  "references": {
+    "docs": {
+      "path": "docs",
+      "description": "Project documentation, requirements, and context files including CONTEXT_APP"
     }
   }
 }

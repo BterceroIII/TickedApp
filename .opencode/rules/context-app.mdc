@@ -1,0 +1,17 @@
+---
+description: "Always read docs/CONTEXT_APP for project context and requirements"
+---
+
+# Project Context
+
+CRITICAL: You MUST read the file `docs/CONTEXT_APP` at the start of every conversation (before taking any action). This file contains the project's requirements, specifications, and context that are essential for understanding what needs to be built.
+
+The CONTEXT_APP file includes:
+- Figma prototype links (desktop and mobile)
+- Deliverable descriptions and requirements
+- Architecture and technical specifications
+- Integration requirements (e.g., Odoo)
+- Project roadmap and priorities
+- Evaluation criteria
+
+Do not proceed with any task until you have read and understood `docs/CONTEXT_APP`.
