@@ -57,6 +57,7 @@ model Ticket {
   description String?        @db.VarChar(500)
   status      TicketStatus   @default(ABIERTO)
   priority    TicketPriority @default(MEDIA)
+  estimatedDate DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 
@@ -68,6 +69,7 @@ model Ticket {
 
 model User {
   id        String    @id @default(uuid()) @db.Uuid
+  name      String?   @db.VarChar(120)
   email     String    @unique @db.VarChar(254)
   password  String    @db.VarChar(255)
   createdAt DateTime  @default(now())

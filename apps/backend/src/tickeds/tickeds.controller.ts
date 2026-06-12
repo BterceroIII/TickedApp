@@ -11,9 +11,9 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TickedsService } from './tickeds.service';
+import type { TicketWithProject } from './tickeds.service';
 import { CreateTickedDto } from './dto/create-ticked.dto';
 import { UpdateTickedDto } from './dto/update-ticked.dto';
-import type { Ticket } from 'src/generated/prisma/client';
 
 @ApiTags('Tickeds')
 @Controller('tickeds')
@@ -25,7 +25,7 @@ export class TickedsController {
   @ApiOperation({ summary: 'Create a new ticket' })
   @ApiResponse({ status: 201, description: 'Ticket created' })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  create(@Body() createTickedDto: CreateTickedDto): Promise<Ticket> {
+  create(@Body() createTickedDto: CreateTickedDto): Promise<TicketWithProject> {
     return this.tickedsService.create(createTickedDto);
   }
 
@@ -33,7 +33,7 @@ export class TickedsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all tickets' })
   @ApiResponse({ status: 200, description: 'List of tickets' })
-  findAll(): Promise<Ticket[]> {
+  findAll(): Promise<TicketWithProject[]> {
     return this.tickedsService.findAll();
   }
 
@@ -42,7 +42,7 @@ export class TickedsController {
   @ApiOperation({ summary: 'Get a ticket by ID' })
   @ApiResponse({ status: 200, description: 'Ticket found' })
   @ApiResponse({ status: 404, description: 'Ticket not found' })
-  findOne(@Param('id') id: string): Promise<Ticket> {
+  findOne(@Param('id') id: string): Promise<TicketWithProject> {
     return this.tickedsService.findOne(id);
   }
 
@@ -54,7 +54,7 @@ export class TickedsController {
   update(
     @Param('id') id: string,
     @Body() updateTickedDto: UpdateTickedDto,
-  ): Promise<Ticket> {
+  ): Promise<TicketWithProject> {
     return this.tickedsService.update(id, updateTickedDto);
   }
 
@@ -64,6 +64,8 @@ export class TickedsController {
   @ApiResponse({ status: 204, description: 'Ticket deleted' })
   @ApiResponse({ status: 404, description: 'Ticket not found' })
   remove(@Param('id') id: string): Promise<{ message: string }> {
-    return this.tickedsService.remove(id).then(() => ({ message: 'Ticket deleted successfully' }));
+    return this.tickedsService
+      .remove(id)
+      .then(() => ({ message: 'Ticket deleted successfully' }));
   }
 }

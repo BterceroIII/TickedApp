@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
+  IsDate,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -33,4 +35,12 @@ export class CreateTickedDto {
   @IsEnum(TicketPriority)
   @IsNotEmpty()
   priority: TicketPriority;
+
+  @ApiProperty({
+    description: 'The estimated resolution date of the ticket',
+  })
+  @Type(() => Date)
+  @IsDate()
+  @IsNotEmpty()
+  estimatedDate: Date;
 }

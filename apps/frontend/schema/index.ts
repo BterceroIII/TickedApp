@@ -1,0 +1,106 @@
+import { z } from "zod"
+
+const optionalTrimmedString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().optional()
+)
+
+const requiredFutureDate = (message: string) =>
+  z
+    .string()
+    .min(1, { message })
+    .refine((value) => isFutureOrToday(value), {
+      message: "La fecha no puede ser pasada",
+    })
+
+function isFutureOrToday(value: string) {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return false
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  return date >= today
+}
+
+export const ResponseSchema = z.object({
+  succeeded: z.boolean().optional(),
+  message: z.string(),
+  title: z.string().optional(),
+  statusCode: z.number().optional(),
+})
+
+export const UserSchema = z.object({
+  id: z.string().uuid({ message: "Selecciona un responsable válido" }),
+  name: z.string().nullable().optional(),
+  email: z.email({ message: "Ingresa un email válido" }),
+})
+
+export const ProjectStatusSchema = z.enum([
+  "EN_PROGRESO",
+  "EN_REVISION",
+  "PLANIFICACION",
+  "COMPLETADO",
+], { message: "Selecciona un estado válido" })
+
+export const TicketStatusSchema = z.enum(["ABIERTO", "EN_PROCESO", "RESUELTO"], {
+  message: "Selecciona un estado válido",
+})
+
+export const TicketPrioritySchema = z.enum(["ALTA", "MEDIA", "BAJA"], {
+  message: "Selecciona una prioridad válida",
+})
+
+export const ProjectSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  status: ProjectStatusSchema,
+  responsibleId: z.string(),
+  responsible: UserSchema.optional(),
+  dateLimit: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export const CreateProjectSchema = z.object({
+  name: z.string().trim().min(1, { message: "El nombre del proyecto no puede estar vacío" }),
+  responsible: z.string().min(1, { message: "Selecciona un usuario responsable" }).uuid({ message: "Selecciona un responsable válido" }),
+  dateLimit: requiredFutureDate("Selecciona una fecha límite"),
+  status: ProjectStatusSchema,
+  description: optionalTrimmedString,
+})
+
+export const TickedSchema = z.object({
+  id: z.string(),
+  projectId: z.number(),
+  project: z
+    .object({
+      id: z.number(),
+      name: z.string(),
+    })
+    .optional(),
+  title: z.string(),
+  description: z.string().nullable().optional(),
+  status: TicketStatusSchema,
+  priority: TicketPrioritySchema,
+  estimatedDate: z.string().nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+})
+
+export const CreateTickedSchema = z.object({
+  title: z.string().trim().min(1, { message: "El título del ticket no puede estar vacío" }),
+  projectId: z.coerce.number().int().positive({ message: "Selecciona un proyecto válido" }),
+  priority: TicketPrioritySchema,
+  status: TicketStatusSchema,
+  estimatedDate: requiredFutureDate("Debe seleccionar una fecha válida"),
+  description: optionalTrimmedString,
+})
+
+export type ResponseType = z.infer<typeof ResponseSchema>
+export type UserType = z.infer<typeof UserSchema>
+export type ProjectType = z.infer<typeof ProjectSchema>
+export type ProjectFormType = z.infer<typeof CreateProjectSchema>
+export type TickedType = z.infer<typeof TickedSchema>
+export type TickedFormType = z.infer<typeof CreateTickedSchema>
