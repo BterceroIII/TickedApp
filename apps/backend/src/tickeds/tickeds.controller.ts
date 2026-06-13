@@ -8,20 +8,29 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TickedsService } from './tickeds.service';
 
 import { CreateTickedDto } from './dto/create-ticked.dto';
 import { UpdateTickedDto } from './dto/update-ticked.dto';
 import { TicketWithProject } from './types/ticked-project.type';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { UserRole, type User } from 'src/generated/prisma/client';
 
 @ApiTags('Tickeds')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
 @Controller('tickeds')
 export class TickedsController {
   constructor(private readonly tickedsService: TickedsService) {}
 
   @Post()
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new ticket' })
   @ApiResponse({ status: 201, description: 'Ticket created' })
@@ -34,8 +43,8 @@ export class TickedsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all tickets' })
   @ApiResponse({ status: 200, description: 'List of tickets' })
-  findAll(): Promise<TicketWithProject[]> {
-    return this.tickedsService.findAll();
+  findAll(@CurrentUser() user: User): Promise<TicketWithProject[]> {
+    return this.tickedsService.findAll(user);
   }
 
   @Get(':id')
@@ -43,8 +52,11 @@ export class TickedsController {
   @ApiOperation({ summary: 'Get a ticket by ID' })
   @ApiResponse({ status: 200, description: 'Ticket found' })
   @ApiResponse({ status: 404, description: 'Ticket not found' })
-  findOne(@Param('id') id: string): Promise<TicketWithProject> {
-    return this.tickedsService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<TicketWithProject> {
+    return this.tickedsService.findOne(id, user);
   }
 
   @Patch(':id')
@@ -60,6 +72,7 @@ export class TickedsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a ticket' })
   @ApiResponse({ status: 204, description: 'Ticket deleted' })

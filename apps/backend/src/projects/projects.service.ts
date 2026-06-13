@@ -1,16 +1,29 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectProgressDto } from './dto/project-progress.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { Prisma, TicketStatus } from 'src/generated/prisma/client';
-import { ProjectWithResponsible } from './types/project-responsible.type';
+import { Prisma, TicketStatus, UserRole } from 'src/generated/prisma/client';
+import { AuthenticatedUser } from 'src/common/interfaces/authenticated-user.interface';
+import {
+  projectWithResponsibleInclude,
+  ProjectWithResponsible,
+} from './types/project-responsible.type';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class ProjectsService {
   private readonly logger = new Logger(ProjectsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(dto: CreateProjectDto): Promise<ProjectWithResponsible> {
     const project = await this.prisma.project.create({
@@ -18,19 +31,21 @@ export class ProjectsService {
         ...dto,
         responsible: { connect: { id: dto.responsible } },
       },
-      include: {
-        responsible: { select: { id: true, name: true, email: true } },
-      },
+      include: projectWithResponsibleInclude,
+    });
+    await this.notificationsService.notifyProjectAssigned({
+      userId: dto.responsible,
+      projectId: project.id,
+      projectName: project.name,
     });
     this.logger.log(`Project created successfully`);
     return project;
   }
 
-  async findAll(): Promise<ProjectWithResponsible[]> {
+  async findAll(currentUser: AuthenticatedUser): Promise<ProjectWithResponsible[]> {
     const projects = await this.prisma.project.findMany({
-      include: {
-        responsible: { select: { id: true, name: true, email: true } },
-      },
+      where: this.getUserProjectWhere(currentUser),
+      include: projectWithResponsibleInclude,
       orderBy: { createdAt: 'desc' },
     });
     this.logger.log(`Retrieved all projects`);
@@ -71,16 +86,18 @@ export class ProjectsService {
     return progress;
   }
 
-  async findOne(id: number): Promise<ProjectWithResponsible> {
+  async findOne(
+    id: number,
+    currentUser: AuthenticatedUser,
+  ): Promise<ProjectWithResponsible> {
     const project = await this.prisma.project.findUnique({
       where: { id },
-      include: {
-        responsible: { select: { id: true, name: true, email: true } },
-      },
+      include: projectWithResponsibleInclude,
     });
     if (!project) {
       throw new NotFoundException(`Project #${id} not found`);
     }
+    await this.ensureCanAccessProject(id, currentUser);
     this.logger.log(`Retrieved project #${id}`);
     return project;
   }
@@ -96,7 +113,7 @@ export class ProjectsService {
     };
     const exists = await this.prisma.project.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, responsibleId: true },
     });
     if (!exists) {
       throw new NotFoundException(`Project #${id} not found`);
@@ -104,10 +121,15 @@ export class ProjectsService {
     const project = await this.prisma.project.update({
       where: { id },
       data,
-      include: {
-        responsible: { select: { id: true, name: true, email: true } },
-      },
+      include: projectWithResponsibleInclude,
     });
+    if (responsible && responsible !== exists.responsibleId) {
+      await this.notificationsService.notifyProjectAssigned({
+        userId: responsible,
+        projectId: project.id,
+        projectName: project.name,
+      });
+    }
     this.logger.log(`Project #${id} updated successfully`);
     return project;
   }
@@ -124,5 +146,36 @@ export class ProjectsService {
       where: { id },
     });
     this.logger.log(`Project #${id} deleted successfully`);
+  }
+
+  private getUserProjectWhere(
+    currentUser: AuthenticatedUser,
+  ): Prisma.ProjectWhereInput | undefined {
+    if (currentUser.role === UserRole.ADMIN) {
+      return undefined;
+    }
+
+    return { responsibleId: currentUser.id };
+  }
+
+  private async ensureCanAccessProject(
+    projectId: number,
+    currentUser: AuthenticatedUser,
+  ): Promise<void> {
+    if (currentUser.role === UserRole.ADMIN) {
+      return;
+    }
+
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        ...this.getUserProjectWhere(currentUser),
+      },
+      select: { id: true },
+    });
+
+    if (!project) {
+      throw new ForbiddenException('You can only access assigned projects');
+    }
   }
 }

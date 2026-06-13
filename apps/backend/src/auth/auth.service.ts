@@ -230,7 +230,7 @@ export class AuthService {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: {id: true, name: true, email: true}
+        select: { id: true, name: true, email: true, role: true },
       });
 
       if (!user) {
@@ -251,6 +251,7 @@ export class AuthService {
         id: true,
         name: true,
         email: true,
+        role: true,
       },
       orderBy: { email: 'asc' },
     });

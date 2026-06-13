@@ -7,6 +7,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { TickedsModule } from './tickeds/tickeds.module';
 import { AuthModule } from './auth/auth.module';
 import { EmailsModule } from './emails/emails.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { EmailsModule } from './emails/emails.module';
     ProjectsModule,
     TickedsModule,
     EmailsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

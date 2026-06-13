@@ -1,0 +1,41 @@
+---
+description: "Use Nest CLI workflows and project patterns for backend modules, resources, controllers, and services"
+patterns: "apps/backend/src/**/*.ts"
+---
+
+# NestJS Best Practices
+
+This project uses NestJS in `apps/backend`. Always prefer Nest CLI generators for new backend structure.
+
+## Required Workflow
+
+- Generate new REST resources, modules, controllers, services, guards, pipes, and providers with Nest CLI from the repo root.
+- Prefer package scripts/workspace commands through pnpm:
+
+```bash
+pnpm --filter backend exec nest generate resource <name> --no-spec --type rest
+pnpm --filter backend exec nest generate module <name>
+pnpm --filter backend exec nest generate controller <name>
+pnpm --filter backend exec nest generate service <name>
+```
+
+- Use `--no-spec` only when tests are intentionally deferred for the prototype; otherwise generate or add focused specs.
+- After generating code, adapt it to existing project conventions: DTO names, `JwtAuthGuard`, `RolesGuard`, `@CurrentUser()`, PrismaService, Swagger decorators, and module imports.
+- Verify backend changes with:
+
+```bash
+pnpm --filter backend build
+pnpm --filter backend test --runInBand
+```
+
+## Do Not Do This
+
+- Do not manually create Nest modules/resources/controllers/services when a Nest CLI generator can create the structure.
+- Do not bypass existing guards, decorators, DTO validation, or Prisma patterns.
+- Do not leave generated placeholder code if it conflicts with project conventions.
+
+## Notes
+
+- Run commands from the repository root using `pnpm --filter backend exec ...`.
+- Keep generated resources under `apps/backend/src/<resource-name>`.
+- For endpoints that depend on the authenticated user, use `@CurrentUser()` and the shared `AuthenticatedUser` interface where appropriate.

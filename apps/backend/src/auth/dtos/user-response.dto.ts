@@ -9,4 +9,7 @@ export class UserResponseDto {
 
   @ApiProperty({ description: 'User email', example: 'john@example.com' })
   email: string;
+
+  @ApiProperty({ description: 'User role', example: 'USER' })
+  role: string;
 }

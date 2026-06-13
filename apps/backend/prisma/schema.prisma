@@ -32,6 +32,11 @@ enum TicketPriority {
   BAJA  @map("Baja")
 }
 
+enum UserRole {
+  ADMIN
+  USER
+}
+
 model Project {
   id            Int           @id @default(autoincrement())
   name          String        @db.VarChar(120)
@@ -43,6 +48,7 @@ model Project {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   tickets       Ticket[]
+  notifications Notification[]
 
   @@index([responsibleId])
   @@index([status])
@@ -50,33 +56,61 @@ model Project {
 }
 
 model Ticket {
-  id          String         @id
-  projectId   Int
-  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title       String         @db.VarChar(150)
-  description String?        @db.VarChar(500)
-  status      TicketStatus   @default(ABIERTO)
-  priority    TicketPriority @default(MEDIA)
+  id            String         @id
+  projectId     Int
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title         String         @db.VarChar(150)
+  description   String?        @db.VarChar(500)
+  status        TicketStatus   @default(ABIERTO)
+  priority      TicketPriority @default(MEDIA)
   estimatedDate DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  assignedToId  String?        @db.Uuid
+  assignedTo    User?          @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
 
   @@index([projectId])
   @@index([status])
   @@index([priority])
+  @@index([assignedToId])
   @@map("tickets")
 }
 
 model User {
-  id        String    @id @default(uuid()) @db.Uuid
-  name      String?   @db.VarChar(120)
-  email     String    @unique @db.VarChar(254)
-  password  String    @db.VarChar(255)
-  token     String?   @unique @db.VarChar(6)
-  confirmed Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  projects  Project[]
+  id              String    @id @default(uuid()) @db.Uuid
+  name            String?   @db.VarChar(120)
+  email           String    @unique @db.VarChar(254)
+  password        String    @db.VarChar(255)
+  token           String?   @unique @db.VarChar(6)
+  confirmed       Boolean   @default(false)
+  role            UserRole  @default(USER)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  projects        Project[]
+  assignedTickets Ticket[]  @relation("AssignedTickets")
+  notifications   Notification[]
 
   @@map("users")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   @db.VarChar(120)
+  message   String   @db.VarChar(300)
+  read      Boolean  @default(false)
+  ticketId  String?
+  ticket    Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  projectId Int?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([read])
+  @@index([ticketId])
+  @@index([projectId])
+  @@map("notifications")
 }

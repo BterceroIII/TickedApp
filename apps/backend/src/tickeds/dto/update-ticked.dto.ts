@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsEnum, IsInt, IsOptional, IsString, IsUUID } from 'class-validator';
 import { TicketPriority, TicketStatus } from 'src/generated/prisma/client';
 
 export class UpdateTickedDto {
@@ -36,4 +36,9 @@ export class UpdateTickedDto {
   @IsDate()
   @IsOptional()
   estimatedDate?: Date;
+
+  @ApiPropertyOptional({ description: 'The assigned user ID' })
+  @IsUUID()
+  @IsOptional()
+  assignedToId?: string;
 }

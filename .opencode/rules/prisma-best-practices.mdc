@@ -1,0 +1,49 @@
+---
+description: "Use Prisma CLI workflows and best practices for schema, migrations, and generated client changes"
+patterns: "apps/backend/prisma/**, apps/backend/src/**/*.ts"
+---
+
+# Prisma Best Practices
+
+This project uses Prisma in `apps/backend`. Always use Prisma's CLI workflow for schema and migration changes.
+
+## Required Workflow
+
+- Edit `apps/backend/prisma/schema.prisma` first for model, enum, relation, index, or constraint changes.
+- Create migrations with Prisma commands from the repo root:
+
+```bash
+pnpm --filter backend prisma:migrate --name <descriptive_name>
+```
+
+- Regenerate the Prisma client with:
+
+```bash
+pnpm --filter backend prisma:generate
+```
+
+- Verify backend changes with:
+
+```bash
+pnpm --filter backend build
+pnpm --filter backend test --runInBand
+```
+
+## Do Not Do This
+
+- Do not manually create migration folders under `apps/backend/prisma/migrations/`.
+- Do not manually write `migration.sql` files unless the user explicitly asks for a hand-authored SQL migration and the reason is documented.
+- Do not edit generated Prisma client files under `apps/backend/src/generated/prisma`.
+- Do not use `prisma db push` as a replacement for migrations when schema changes must be versioned.
+
+## If A Migration Was Created Incorrectly
+
+- Stop and tell the user before deleting or replacing migration files.
+- Prefer generating a correct migration with Prisma CLI instead of hand-fixing SQL.
+- Never reset or wipe the database unless the user explicitly approves it.
+
+## Notes
+
+- The backend package already exposes Prisma scripts in `apps/backend/package.json`.
+- Use `pnpm --filter backend prisma:migrate --name <name>` instead of running raw `prisma migrate dev` directly.
+- Keep migrations descriptive, for example `add_user_roles_and_ticket_assignment`.

@@ -17,16 +17,20 @@ import { ProjectProgressDto } from './dto/project-progress.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectWithResponsible } from './types/project-responsible.type';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UserRole, type User } from 'src/generated/prisma/client';
 
 @ApiTags('Projects')
-@Controller('budget')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({ status: 201, description: 'Project created' })
@@ -41,8 +45,8 @@ export class ProjectsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all projects' })
   @ApiResponse({ status: 200, description: 'List of projects' })
-  findAll(): Promise<ProjectWithResponsible[]> {
-    return this.projectsService.findAll();
+  findAll(@CurrentUser() user: User): Promise<ProjectWithResponsible[]> {
+    return this.projectsService.findAll(user);
   }
 
   @Get('progress')
@@ -58,11 +62,15 @@ export class ProjectsController {
   @ApiOperation({ summary: 'Get a project by ID' })
   @ApiResponse({ status: 200, description: 'Project found' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  findOne(@Param('id') id: string): Promise<ProjectWithResponsible> {
-    return this.projectsService.findOne(+id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user: User,
+  ): Promise<ProjectWithResponsible> {
+    return this.projectsService.findOne(+id, user);
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Update a project' })
   @ApiResponse({ status: 200, description: 'Project updated' })
@@ -75,6 +83,7 @@ export class ProjectsController {
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a project' })
   @ApiResponse({ status: 204, description: 'Project deleted' })

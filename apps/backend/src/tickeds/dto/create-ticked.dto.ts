@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
 } from 'class-validator';
 import { TicketPriority, TicketStatus } from 'src/generated/prisma/client';
 
@@ -43,4 +44,9 @@ export class CreateTickedDto {
   @IsDate()
   @IsNotEmpty()
   estimatedDate: Date;
+
+  @ApiPropertyOptional({ description: 'The assigned user ID' })
+  @IsUUID()
+  @IsOptional()
+  assignedToId?: string;
 }
