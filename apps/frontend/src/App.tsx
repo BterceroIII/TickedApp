@@ -1,7 +1,6 @@
 import {
   ActivityIcon,
   AlertCircleIcon,
-  BellIcon,
   CalendarDaysIcon,
   CheckCircle2Icon,
   Clock3Icon,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { NotificationsBell } from "@/components/notifications-bell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -119,9 +119,7 @@ export function App() {
                 <p className="text-sm text-muted-foreground">Resumen general de proyectos y tickets</p>
               </div>
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="icon-sm" aria-label="Notificaciones">
-                  <BellIcon />
-                </Button>
+                <NotificationsBell />
                 <Button>
                   <MessageSquarePlusIcon data-icon="inline-start" />
                   Nuevo ticket

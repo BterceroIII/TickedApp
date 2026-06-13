@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/services/api"
+import type { User } from "@/services/auth/users.service"
 import { projectProgressQueryKey } from "@/services/projects/projects.service"
 
 export type TicketStatus = "ABIERTO" | "EN_PROCESO" | "RESUELTO"
@@ -17,6 +18,8 @@ export type Ticked = {
   description?: string | null
   status: TicketStatus
   priority: TicketPriority
+  assignedToId?: string | null
+  assignedTo?: User | null
   estimatedDate?: string | null
   createdAt: string
   updatedAt: string
@@ -28,6 +31,7 @@ export type CreateTickedInput = {
   description?: string
   status: TicketStatus
   priority: TicketPriority
+  assignedToId: string
   estimatedDate: string | Date
 }
 

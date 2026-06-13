@@ -53,8 +53,8 @@ export class ProjectsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get progress metrics for all projects' })
   @ApiResponse({ status: 200, description: 'Project progress metrics' })
-  findProgress(): Promise<ProjectProgressDto[]> {
-    return this.projectsService.findProgress();
+  findProgress(@CurrentUser() user: User): Promise<ProjectProgressDto[]> {
+    return this.projectsService.findProgress(user);
   }
 
   @Get(':id')

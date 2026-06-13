@@ -1,6 +1,5 @@
 import { useState } from "react"
 import {
-  BellIcon,
   MessageSquareIcon,
   PlusIcon,
 } from "lucide-react"
@@ -8,6 +7,7 @@ import {
 import { AppSidebar } from "@/components/app-sidebar"
 import { DatePickerInput } from "@/components/date-picker-input"
 import ErrorMessage, { type ActionState } from "@/components/error-message"
+import { NotificationsBell } from "@/components/notifications-bell"
 import { TickedRowActions } from "@/components/ticked-row-actions"
 import { useToastNotifications } from "@/hooks/use-toast-notifications"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { getUserDisplayName, useUsers } from "@/services/auth/users.service"
 import { useProjects } from "@/services/projects/projects.service"
 import type { Ticked } from "@/services/tickeds/tickeds.service"
 import {
@@ -90,9 +91,7 @@ export function TickedsPage() {
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="icon-sm" aria-label="Notificaciones">
-                  <BellIcon />
-                </Button>
+                <NotificationsBell />
                 <Button
                   onClick={() => {
                     setEditingTicked(null)
@@ -139,6 +138,9 @@ export function TickedsPage() {
                         Proyecto
                       </TableHead>
                       <TableHead className="px-4 py-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        Asignado a
+                      </TableHead>
+                      <TableHead className="px-4 py-4 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                         Fecha estimada
                       </TableHead>
                       <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
@@ -151,10 +153,10 @@ export function TickedsPage() {
                   </TableHeader>
                   <TableBody>
                     {tickedsQuery.isLoading ? (
-                      <TableMessage colSpan={8}>Cargando tickets...</TableMessage>
+                      <TableMessage colSpan={9}>Cargando tickets...</TableMessage>
                     ) : null}
                     {tickedsQuery.isError ? (
-                      <TableMessage colSpan={8}>
+                      <TableMessage colSpan={9}>
                         No se pudieron cargar los tickets desde la API.
                       </TableMessage>
                     ) : null}
@@ -186,6 +188,11 @@ export function TickedsPage() {
                               {getProjectName(ticked.projectId, ticked.project?.name, projectsQuery.data)}
                             </TableCell>
                             <TableCell className="px-4 py-5 text-muted-foreground">
+                              {ticked.assignedTo
+                                ? getUserDisplayName(ticked.assignedTo)
+                                : "Sin asignar"}
+                            </TableCell>
+                            <TableCell className="px-4 py-5 text-muted-foreground">
                               {ticked.estimatedDate
                                 ? formatDate(ticked.estimatedDate)
                                 : "Sin fecha"}
@@ -211,7 +218,7 @@ export function TickedsPage() {
                       })
                     ) : null}
                     {tickedsQuery.data?.length === 0 ? (
-                      <TableMessage colSpan={8}>No hay tickets registrados.</TableMessage>
+                      <TableMessage colSpan={9}>No hay tickets registrados.</TableMessage>
                     ) : null}
                   </TableBody>
                 </Table>
@@ -236,11 +243,13 @@ function CreateTicketCard({
   const [status, setStatus] = useState<TicketStatus>(ticked?.status ?? "ABIERTO")
   const [priority, setPriority] = useState<TicketPriority>(ticked?.priority ?? "MEDIA")
   const [projectId, setProjectId] = useState(ticked ? String(ticked.projectId) : "")
+  const [assignedToId, setAssignedToId] = useState(ticked?.assignedToId ?? "")
   const [estimatedDate, setEstimatedDate] = useState(toDateInputValue(ticked?.estimatedDate ?? undefined))
 
   const { mutate: createTicked, isPending } = useCreateTicked()
   const updateTicked = useUpdateTicked()
   const projectsQuery = useProjects()
+  const usersQuery = useUsers()
   const { notifyCreated, notifyUpdated, notifyError } = useToastNotifications("ticket")
   const [actionState, setActionState] = useState<ActionState>({})
   const isEditing = Boolean(ticked)
@@ -254,6 +263,7 @@ function CreateTicketCard({
       status,
       priority,
       projectId: Number(projectId),
+      assignedToId,
       estimatedDate,
     })
 
@@ -358,6 +368,38 @@ function CreateTicketCard({
                   <SelectItem value="BAJA">Baja</SelectItem>
                   <SelectItem value="MEDIA">Media</SelectItem>
                   <SelectItem value="ALTA">Alta</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Asignado a</Label>
+            <Select value={assignedToId} onValueChange={setAssignedToId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecciona un usuario" />
+              </SelectTrigger>
+              <SelectContent position="popper" align="start">
+                <SelectGroup>
+                  {usersQuery.isLoading ? (
+                    <SelectItem value="__loading" disabled>
+                      Cargando usuarios...
+                    </SelectItem>
+                  ) : null}
+                  {usersQuery.isError ? (
+                    <SelectItem value="__error" disabled>
+                      No se pudieron cargar usuarios
+                    </SelectItem>
+                  ) : null}
+                  {usersQuery.data?.length === 0 ? (
+                    <SelectItem value="__empty" disabled>
+                      No hay usuarios disponibles
+                    </SelectItem>
+                  ) : null}
+                  {usersQuery.data?.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {getUserDisplayName(user)}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>

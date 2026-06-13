@@ -85,6 +85,8 @@ export const TickedSchema = z.object({
   status: TicketStatusSchema,
   priority: TicketPrioritySchema,
   estimatedDate: z.string().nullable().optional(),
+  assignedToId: z.string().nullable().optional(),
+  assignedTo: UserSchema.optional().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -95,6 +97,7 @@ export const CreateTickedSchema = z.object({
   priority: TicketPrioritySchema,
   status: TicketStatusSchema,
   estimatedDate: requiredFutureDate("Debe seleccionar una fecha válida"),
+  assignedToId: z.string().min(1, { message: "Selecciona un usuario asignado" }).uuid({ message: "Selecciona un usuario válido" }),
   description: optionalTrimmedString,
 })
 

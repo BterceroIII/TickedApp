@@ -1,6 +1,5 @@
 import { useState } from "react"
 import {
-  BellIcon,
   FolderKanbanIcon,
   PlusIcon,
   UserIcon,
@@ -9,6 +8,7 @@ import {
 import { AppSidebar } from "@/components/app-sidebar"
 import { DatePickerInput } from "@/components/date-picker-input"
 import ErrorMessage, { type ActionState } from "@/components/error-message"
+import { NotificationsBell } from "@/components/notifications-bell"
 import { ProjectRowActions } from "@/components/project-row-actions"
 import { useToastNotifications } from "@/hooks/use-toast-notifications"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useCurrentUser } from "@/services/auth/auth.service"
 import { getUserDisplayName, useUsers } from "@/services/auth/users.service"
 import type {
   Project,
@@ -73,8 +74,10 @@ const statusConfig: Record<
 export function ProjectsPage() {
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const currentUserQuery = useCurrentUser()
   const projectsQuery = useProjects()
   const progressQuery = useProjectsProgress()
+  const canManageProjects = currentUserQuery.data?.role === "ADMIN"
 
   return (
     <TooltipProvider>
@@ -92,24 +95,24 @@ export function ProjectsPage() {
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-2">
-                <Button variant="outline" size="icon-sm" aria-label="Notificaciones">
-                  <BellIcon />
-                </Button>
-                <Button
-                  onClick={() => {
-                    setEditingProject(null)
-                    setShowCreateProject((value) => !value)
-                  }}
-                >
-                  <PlusIcon data-icon="inline-start" />
-                  Crear proyecto
-                </Button>
+                <NotificationsBell />
+                {canManageProjects ? (
+                  <Button
+                    onClick={() => {
+                      setEditingProject(null)
+                      setShowCreateProject((value) => !value)
+                    }}
+                  >
+                    <PlusIcon data-icon="inline-start" />
+                    Crear proyecto
+                  </Button>
+                ) : null}
               </div>
             </div>
           </header>
 
           <main className="flex flex-1 flex-col gap-5 bg-muted/35 p-4 md:p-6">
-            {showCreateProject ? (
+            {canManageProjects && showCreateProject ? (
               <CreateProjectCard
                 key={editingProject?.id ?? "new-project"}
                 project={editingProject}
@@ -140,17 +143,19 @@ export function ProjectsPage() {
                       <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                         Avance
                       </TableHead>
-                      <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                        Acciones
-                      </TableHead>
+                      {canManageProjects ? (
+                        <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                          Acciones
+                        </TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {projectsQuery.isLoading ? (
-                      <TableMessage colSpan={6}>Cargando proyectos...</TableMessage>
+                      <TableMessage colSpan={canManageProjects ? 6 : 5}>Cargando proyectos...</TableMessage>
                     ) : null}
                     {projectsQuery.isError ? (
-                      <TableMessage colSpan={6}>
+                      <TableMessage colSpan={canManageProjects ? 6 : 5}>
                         No se pudieron cargar los proyectos desde la API.
                       </TableMessage>
                     ) : null}
@@ -162,15 +167,22 @@ export function ProjectsPage() {
                           progress={progressQuery.data?.find(
                             (item) => item.projectId === project.id
                           )}
-                          onEdit={(nextProject) => {
-                            setEditingProject(nextProject)
-                            setShowCreateProject(true)
-                          }}
+                          canManageProjects={canManageProjects}
+                          onEdit={
+                            canManageProjects
+                              ? (nextProject) => {
+                                  setEditingProject(nextProject)
+                                  setShowCreateProject(true)
+                                }
+                              : undefined
+                          }
                         />
                       ))
                     ) : null}
                     {projectsQuery.data?.length === 0 ? (
-                      <TableMessage colSpan={6}>No hay proyectos registrados.</TableMessage>
+                      <TableMessage colSpan={canManageProjects ? 6 : 5}>
+                        No hay proyectos registrados.
+                      </TableMessage>
                     ) : null}
                   </TableBody>
                 </Table>
@@ -186,11 +198,13 @@ export function ProjectsPage() {
 function ProjectRow({
   project,
   progress,
+  canManageProjects,
   onEdit,
 }: {
   project: Project
   progress?: ProjectProgress
-  onEdit: (project: Project) => void
+  canManageProjects: boolean
+  onEdit?: (project: Project) => void
 }) {
   const status = statusConfig[project.status]
   const progressPercentage = progress?.percentage ?? 0
@@ -225,9 +239,11 @@ function ProjectRow({
           </span>
         </div>
       </TableCell>
-      <TableCell className="px-4 py-5 text-right">
-        <ProjectRowActions project={project} onEdit={onEdit} />
-      </TableCell>
+      {canManageProjects ? (
+        <TableCell className="px-4 py-5 text-right">
+          <ProjectRowActions project={project} onEdit={onEdit} />
+        </TableCell>
+      ) : null}
     </TableRow>
   )
 }

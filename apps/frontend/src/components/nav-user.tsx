@@ -1,7 +1,9 @@
+import { useNavigate } from "@tanstack/react-router"
+import { toast } from "sonner"
+
 import {
   Avatar,
   AvatarFallback,
-  AvatarImage,
 } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -18,18 +20,42 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { getApiErrorMessage } from "@/services/api"
+import { useCurrentUser, useLogout } from "@/services/auth/auth.service"
 import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from "lucide-react"
 
-export function NavUser({
-  user,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar: string
+function getUserInitials(name?: string, email?: string) {
+  const source = name?.trim() || email?.trim() || "Usuario"
+  const words = source.split(/\s+/).filter(Boolean)
+
+  if (words.length > 1) {
+    return `${words[0][0]}${words[1][0]}`.toUpperCase()
   }
-}) {
+
+  return source.slice(0, 2).toUpperCase()
+}
+
+export function NavUser() {
   const { isMobile } = useSidebar()
+  const navigate = useNavigate()
+  const currentUser = useCurrentUser()
+  const logoutMutation = useLogout()
+  const user = currentUser.data
+  const name = user?.name || "Usuario"
+  const email = user?.email || "Cargando sesión..."
+  const initials = getUserInitials(user?.name, user?.email)
+
+  function handleLogout() {
+    logoutMutation.mutate(undefined, {
+      onSuccess: (data) => {
+        toast.success(data.message)
+        void navigate({ to: "/login" })
+      },
+      onError: (error) => {
+        toast.error(getApiErrorMessage(error))
+      },
+    })
+  }
 
   return (
     <SidebarMenu>
@@ -41,12 +67,11 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="size-8 rounded-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">SH</AvatarFallback>
+                <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="truncate text-xs">{user.email}</span>
+                <span className="truncate font-medium">{name}</span>
+                <span className="truncate text-xs">{email}</span>
               </div>
               <ChevronsUpDownIcon className="ml-auto" />
             </SidebarMenuButton>
@@ -60,12 +85,11 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="size-8 rounded-lg">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">SH</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="truncate text-xs">{user.email}</span>
+                  <span className="truncate font-medium">{name}</span>
+                  <span className="truncate text-xs">{email}</span>
                 </div>
               </div>
             </DropdownMenuLabel>
@@ -77,11 +101,13 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <LogOutIcon
-              />
-              Cerrar sesión
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={logoutMutation.isPending}
+              onSelect={handleLogout}
+            >
+              <LogOutIcon />
+              {logoutMutation.isPending ? "Cerrando sesión..." : "Cerrar sesión"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

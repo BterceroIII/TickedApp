@@ -1,4 +1,14 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Sse,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
@@ -20,6 +30,12 @@ export class NotificationsController {
     return this.notificationsService.findAll(user.id);
   }
 
+  @Sse('stream')
+  @ApiOperation({ summary: 'Stream current user notifications with SSE' })
+  stream(@CurrentUser() user: User) {
+    return this.notificationsService.stream(user.id);
+  }
+
   @Patch(':id/read')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Mark notification as read' })
@@ -34,5 +50,21 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'Notifications marked as read' })
   markAllAsRead(@CurrentUser() user: User) {
     return this.notificationsService.markAllAsRead(user.id);
+  }
+
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete current user notifications' })
+  @ApiResponse({ status: 204, description: 'Notifications deleted' })
+  removeAll(@CurrentUser() user: User) {
+    return this.notificationsService.removeAll(user.id);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a notification' })
+  @ApiResponse({ status: 204, description: 'Notification deleted' })
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.notificationsService.remove(+id, user.id);
   }
 }

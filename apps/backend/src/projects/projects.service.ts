@@ -52,8 +52,11 @@ export class ProjectsService {
     return projects;
   }
 
-  async findProgress(): Promise<ProjectProgressDto[]> {
+  async findProgress(
+    currentUser: AuthenticatedUser,
+  ): Promise<ProjectProgressDto[]> {
     const projects = await this.prisma.project.findMany({
+      where: this.getUserProjectWhere(currentUser),
       select: {
         id: true,
         tickets: {

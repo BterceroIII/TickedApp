@@ -1,6 +1,22 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
+import {
+  authCookieName,
+  authCookieNames,
+  getAuthCookieOptions,
+  getClearAuthCookieOptions,
+} from './auth-cookie';
 import { CreateAccountDto } from './dtos/create-account.dto';
 import { ConfirmAccountDto } from './dtos/confirm-account.dto';
 import { LoginDto } from './dtos/login.dto';
@@ -52,9 +68,25 @@ export class AuthController {
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 403, description: 'Account not confirmed' })
   @ApiResponse({ status: 401, description: 'Invalid password' })
-  async login(@Body() loginDto: LoginDto): Promise<{ token: string }> {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
     const token = await this.authService.login(loginDto);
-    return { token };
+    response.cookie(authCookieName, token, getAuthCookieOptions());
+    return { message: 'Sesión iniciada correctamente' };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Clear current auth session' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  logout(@Res({ passthrough: true }) response: Response): { message: string } {
+    for (const cookieName of new Set(authCookieNames)) {
+      response.clearCookie(cookieName, getClearAuthCookieOptions());
+    }
+
+    return { message: 'Sesión cerrada correctamente' };
   }
 
   @Post('forgot-password')

@@ -9,86 +9,174 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as tickedsTickedsRouteImport } from './routes/(tickeds)/tickeds'
-import { Route as projectsProjectsRouteImport } from './routes/(projects)/projects'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as OtpRouteImport } from './routes/otp'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProtectedRouteImport } from './routes/_protected'
+import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
+import { Route as ProtectedtickedsTickedsRouteImport } from './routes/_protected/(tickeds)/tickeds'
+import { Route as ProtectedprojectsProjectsRouteImport } from './routes/_protected/(projects)/projects'
 
-const IndexRoute = IndexRouteImport.update({
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OtpRoute = OtpRouteImport.update({
+  id: '/otp',
+  path: '/otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedRoute = ProtectedRouteImport.update({
+  id: '/_protected',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedIndexRoute = ProtectedIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ProtectedRoute,
 } as any)
-const tickedsTickedsRoute = tickedsTickedsRouteImport.update({
+const ProtectedtickedsTickedsRoute = ProtectedtickedsTickedsRouteImport.update({
   id: '/(tickeds)/tickeds',
   path: '/tickeds',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ProtectedRoute,
 } as any)
-const projectsProjectsRoute = projectsProjectsRouteImport.update({
-  id: '/(projects)/projects',
-  path: '/projects',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const ProtectedprojectsProjectsRoute =
+  ProtectedprojectsProjectsRouteImport.update({
+    id: '/(projects)/projects',
+    path: '/projects',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/projects': typeof projectsProjectsRoute
-  '/tickeds': typeof tickedsTickedsRoute
+  '/': typeof ProtectedIndexRoute
+  '/login': typeof LoginRoute
+  '/otp': typeof OtpRoute
+  '/register': typeof RegisterRoute
+  '/projects': typeof ProtectedprojectsProjectsRoute
+  '/tickeds': typeof ProtectedtickedsTickedsRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/projects': typeof projectsProjectsRoute
-  '/tickeds': typeof tickedsTickedsRoute
+  '/login': typeof LoginRoute
+  '/otp': typeof OtpRoute
+  '/register': typeof RegisterRoute
+  '/': typeof ProtectedIndexRoute
+  '/projects': typeof ProtectedprojectsProjectsRoute
+  '/tickeds': typeof ProtectedtickedsTickedsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/(projects)/projects': typeof projectsProjectsRoute
-  '/(tickeds)/tickeds': typeof tickedsTickedsRoute
+  '/_protected': typeof ProtectedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/otp': typeof OtpRoute
+  '/register': typeof RegisterRoute
+  '/_protected/': typeof ProtectedIndexRoute
+  '/_protected/(projects)/projects': typeof ProtectedprojectsProjectsRoute
+  '/_protected/(tickeds)/tickeds': typeof ProtectedtickedsTickedsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/projects' | '/tickeds'
+  fullPaths: '/' | '/login' | '/otp' | '/register' | '/projects' | '/tickeds'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/projects' | '/tickeds'
-  id: '__root__' | '/' | '/(projects)/projects' | '/(tickeds)/tickeds'
+  to: '/login' | '/otp' | '/register' | '/' | '/projects' | '/tickeds'
+  id:
+    | '__root__'
+    | '/_protected'
+    | '/login'
+    | '/otp'
+    | '/register'
+    | '/_protected/'
+    | '/_protected/(projects)/projects'
+    | '/_protected/(tickeds)/tickeds'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  projectsProjectsRoute: typeof projectsProjectsRoute
-  tickedsTickedsRoute: typeof tickedsTickedsRoute
+  ProtectedRoute: typeof ProtectedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  OtpRoute: typeof OtpRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/otp': {
+      id: '/otp'
+      path: '/otp'
+      fullPath: '/otp'
+      preLoaderRoute: typeof OtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_protected': {
+      id: '/_protected'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ProtectedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_protected/': {
+      id: '/_protected/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedIndexRouteImport
+      parentRoute: typeof ProtectedRoute
     }
-    '/(tickeds)/tickeds': {
-      id: '/(tickeds)/tickeds'
+    '/_protected/(tickeds)/tickeds': {
+      id: '/_protected/(tickeds)/tickeds'
       path: '/tickeds'
       fullPath: '/tickeds'
-      preLoaderRoute: typeof tickedsTickedsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedtickedsTickedsRouteImport
+      parentRoute: typeof ProtectedRoute
     }
-    '/(projects)/projects': {
-      id: '/(projects)/projects'
+    '/_protected/(projects)/projects': {
+      id: '/_protected/(projects)/projects'
       path: '/projects'
       fullPath: '/projects'
-      preLoaderRoute: typeof projectsProjectsRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ProtectedprojectsProjectsRouteImport
+      parentRoute: typeof ProtectedRoute
     }
   }
 }
 
+interface ProtectedRouteChildren {
+  ProtectedIndexRoute: typeof ProtectedIndexRoute
+  ProtectedprojectsProjectsRoute: typeof ProtectedprojectsProjectsRoute
+  ProtectedtickedsTickedsRoute: typeof ProtectedtickedsTickedsRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedIndexRoute: ProtectedIndexRoute,
+  ProtectedprojectsProjectsRoute: ProtectedprojectsProjectsRoute,
+  ProtectedtickedsTickedsRoute: ProtectedtickedsTickedsRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  projectsProjectsRoute: projectsProjectsRoute,
-  tickedsTickedsRoute: tickedsTickedsRoute,
+  ProtectedRoute: ProtectedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  OtpRoute: OtpRoute,
+  RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
