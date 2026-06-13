@@ -4,17 +4,7 @@ import { UpdateTickedDto } from './dto/update-ticked.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from 'src/generated/prisma/client';
 import { generateTicketId } from 'src/common/utils/ticket-id';
-
-export type TicketWithProject = Prisma.TicketGetPayload<{
-  include: {
-    project: {
-      select: {
-        id: true;
-        name: true;
-      };
-    };
-  };
-}>;
+import { TicketWithProject } from './types/ticked-project.type';
 
 @Injectable()
 export class TickedsService {

@@ -4,18 +4,7 @@ import { ProjectProgressDto } from './dto/project-progress.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, TicketStatus } from 'src/generated/prisma/client';
-
-export type ProjectWithResponsible = Prisma.ProjectGetPayload<{
-  include: {
-    responsible: {
-      select: {
-        id: true;
-        name: true;
-        email: true;
-      };
-    };
-  };
-}>;
+import { ProjectWithResponsible } from './types/project-responsible.type';
 
 @Injectable()
 export class ProjectsService {

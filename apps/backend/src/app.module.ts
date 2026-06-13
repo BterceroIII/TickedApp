@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { TickedsModule } from './tickeds/tickeds.module';
 import { AuthModule } from './auth/auth.module';
+import { EmailsModule } from './emails/emails.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
     ProjectsModule,
     TickedsModule,
+    EmailsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -8,15 +8,20 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
-import type { ProjectWithResponsible } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectProgressDto } from './dto/project-progress.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { ProjectWithResponsible } from './types/project-responsible.type';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @ApiTags('Projects')
+@Controller('budget')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}

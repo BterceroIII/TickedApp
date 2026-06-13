@@ -72,6 +72,8 @@ model User {
   name      String?   @db.VarChar(120)
   email     String    @unique @db.VarChar(254)
   password  String    @db.VarChar(255)
+  token     String?   @unique @db.VarChar(6)
+  confirmed Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   projects  Project[]

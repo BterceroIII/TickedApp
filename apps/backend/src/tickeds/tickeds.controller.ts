@@ -11,9 +11,10 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TickedsService } from './tickeds.service';
-import type { TicketWithProject } from './tickeds.service';
+
 import { CreateTickedDto } from './dto/create-ticked.dto';
 import { UpdateTickedDto } from './dto/update-ticked.dto';
+import { TicketWithProject } from './types/ticked-project.type';
 
 @ApiTags('Tickeds')
 @Controller('tickeds')
