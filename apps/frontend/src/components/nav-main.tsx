@@ -57,13 +57,15 @@ export function NavMain({
                     isActive={isActive}
                     size="lg"
                     tooltip={item.title}
-                    className="text-[0.95rem]"
+                    className="text-[0.95rem] group-data-[collapsible=icon]:justify-center"
                   >
                     <Link to={item.url}>
                       {item.icon}
-                      <span>{item.title}</span>
+                      <span className="group-data-[collapsible=icon]:hidden">
+                        {item.title}
+                      </span>
                       {item.items?.length ? (
-                        <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[collapsible=icon]:hidden group-data-[state=open]/collapsible:rotate-90" />
                       ) : null}
                     </Link>
                   </SidebarMenuButton>
