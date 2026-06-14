@@ -217,18 +217,27 @@ export function App() {
                       const priority = priorityConfig[ticket.priority]
 
                       return (
-                        <div key={ticket.id} className="flex items-start justify-between gap-3 rounded-xl border bg-background/60 p-3">
-                          <div className="min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-muted-foreground">{ticket.id}</span>
-                              <Badge variant={priority.variant}>{priority.label}</Badge>
+                        <div key={ticket.id} className="rounded-2xl border bg-background/80 p-4 shadow-sm md:rounded-xl md:p-3 md:shadow-none">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 space-y-2">
+                              <span className="font-mono text-sm text-muted-foreground md:text-xs">
+                                {ticket.id}
+                              </span>
+                              <p className="line-clamp-2 text-base font-semibold leading-snug md:truncate md:text-sm">
+                                {ticket.title}
+                              </p>
                             </div>
-                            <p className="truncate text-sm font-semibold">{ticket.title}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {ticket.projectName} · {formatDate(ticket.createdAt)}
-                            </p>
+                            <Badge className="shrink-0" variant={status.variant}>
+                              {status.label}
+                            </Badge>
                           </div>
-                          <Badge variant={status.variant}>{status.label}</Badge>
+                          <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground md:mt-3 md:text-xs">
+                            <Badge variant={priority.variant}>{priority.label}</Badge>
+                            <span>·</span>
+                            <span className="truncate">{ticket.projectName}</span>
+                            <span>·</span>
+                            <span>{formatDate(ticket.createdAt)}</span>
+                          </div>
                         </div>
                       )
                     })
