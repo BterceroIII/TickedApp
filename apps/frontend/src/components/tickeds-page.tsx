@@ -93,13 +93,15 @@ export function TickedsPage() {
               <div className="ml-auto flex items-center gap-2">
                 <NotificationsBell />
                 <Button
+                  aria-label="Crear ticket"
+                  className="size-8 px-0 sm:size-auto sm:h-8 sm:px-2.5"
                   onClick={() => {
                     setEditingTicked(null)
                     setShowCreateTicket((v) => !v)
                   }}
                 >
-                  <PlusIcon data-icon="inline-start" />
-                  Crear ticket
+                  <PlusIcon data-icon="inline-start item-center" />
+                  <span className="hidden sm:inline">Crear ticket</span>
                 </Button>
               </div>
             </div>
@@ -117,7 +119,36 @@ export function TickedsPage() {
               />
             ) : null}
 
-            <Card className="rounded-2xl bg-card py-0">
+            <div className="grid gap-3 md:hidden">
+              {tickedsQuery.isLoading ? (
+                <MobileMessage>Cargando tickets...</MobileMessage>
+              ) : null}
+              {tickedsQuery.isError ? (
+                <MobileMessage>No se pudieron cargar los tickets desde la API.</MobileMessage>
+              ) : null}
+              {tickedsQuery.data?.length ? (
+                tickedsQuery.data.map((ticked) => (
+                  <TickedMobileCard
+                    key={ticked.id}
+                    ticked={ticked}
+                    projectName={getProjectName(
+                      ticked.projectId,
+                      ticked.project?.name,
+                      projectsQuery.data
+                    )}
+                    onEdit={(nextTicked) => {
+                      setEditingTicked(nextTicked)
+                      setShowCreateTicket(true)
+                    }}
+                  />
+                ))
+              ) : null}
+              {tickedsQuery.data?.length === 0 ? (
+                <MobileMessage>No hay tickets registrados.</MobileMessage>
+              ) : null}
+            </div>
+
+            <Card className="hidden rounded-2xl bg-card py-0 md:block">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader className="bg-muted/60">
@@ -228,6 +259,55 @@ export function TickedsPage() {
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
+  )
+}
+
+function TickedMobileCard({
+  ticked,
+  projectName,
+  onEdit,
+}: {
+  ticked: Ticked
+  projectName: string
+  onEdit: (ticked: Ticked) => void
+}) {
+  const status = statusConfig[ticked.status] ?? {
+    label: ticked.status,
+    variant: "outline" as const,
+  }
+  const priority = priorityConfig[ticked.priority] ?? {
+    label: ticked.priority,
+    variant: "default" as const,
+  }
+
+  return (
+    <Card className="rounded-2xl py-0 shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <p className="font-mono text-sm font-medium text-muted-foreground">
+              {ticked.id}
+            </p>
+            <h2 className="line-clamp-2 text-base font-semibold leading-snug">
+              {ticked.title}
+            </h2>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            <Badge variant={status.variant}>{status.label}</Badge>
+            <TickedRowActions ticked={ticked} onEdit={onEdit} />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground">
+          <Badge variant={priority.variant}>{priority.label}</Badge>
+          <span>·</span>
+          <span className="truncate">{projectName}</span>
+          <span>·</span>
+          <span>
+            {ticked.estimatedDate ? formatDate(ticked.estimatedDate) : "Sin fecha"}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -486,5 +566,15 @@ function TableMessage({
         {children}
       </TableCell>
     </TableRow>
+  )
+}
+
+function MobileMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <Card className="rounded-2xl py-0">
+      <CardContent className="p-6 text-center text-sm text-muted-foreground">
+        {children}
+      </CardContent>
+    </Card>
   )
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/services/api"
+import { dashboardQueryKey } from "@/services/dashboard/dashboard.service"
 
 export type CreateAccountInput = {
   name: string
@@ -95,6 +96,7 @@ export function useLogout() {
     mutationFn: logout,
     onSuccess: () => {
       void queryClient.removeQueries({ queryKey: currentUserQueryKey })
+      void queryClient.removeQueries({ queryKey: dashboardQueryKey })
     },
   })
 }

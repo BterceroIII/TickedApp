@@ -16,6 +16,7 @@ import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as ProtectedIndexRouteImport } from './routes/_protected/index'
 import { Route as ProtectedtickedsTickedsRouteImport } from './routes/_protected/(tickeds)/tickeds'
 import { Route as ProtectedprojectsProjectsRouteImport } from './routes/_protected/(projects)/projects'
+import { Route as ProtectedinvoicesInvoicesRouteImport } from './routes/_protected/(invoices)/invoices'
 
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
@@ -52,12 +53,19 @@ const ProtectedprojectsProjectsRoute =
     path: '/projects',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedinvoicesInvoicesRoute =
+  ProtectedinvoicesInvoicesRouteImport.update({
+    id: '/(invoices)/invoices',
+    path: '/invoices',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ProtectedIndexRoute
   '/login': typeof LoginRoute
   '/otp': typeof OtpRoute
   '/register': typeof RegisterRoute
+  '/invoices': typeof ProtectedinvoicesInvoicesRoute
   '/projects': typeof ProtectedprojectsProjectsRoute
   '/tickeds': typeof ProtectedtickedsTickedsRoute
 }
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
   '/otp': typeof OtpRoute
   '/register': typeof RegisterRoute
   '/': typeof ProtectedIndexRoute
+  '/invoices': typeof ProtectedinvoicesInvoicesRoute
   '/projects': typeof ProtectedprojectsProjectsRoute
   '/tickeds': typeof ProtectedtickedsTickedsRoute
 }
@@ -76,14 +85,29 @@ export interface FileRoutesById {
   '/otp': typeof OtpRoute
   '/register': typeof RegisterRoute
   '/_protected/': typeof ProtectedIndexRoute
+  '/_protected/(invoices)/invoices': typeof ProtectedinvoicesInvoicesRoute
   '/_protected/(projects)/projects': typeof ProtectedprojectsProjectsRoute
   '/_protected/(tickeds)/tickeds': typeof ProtectedtickedsTickedsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/otp' | '/register' | '/projects' | '/tickeds'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/otp'
+    | '/register'
+    | '/invoices'
+    | '/projects'
+    | '/tickeds'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/otp' | '/register' | '/' | '/projects' | '/tickeds'
+  to:
+    | '/login'
+    | '/otp'
+    | '/register'
+    | '/'
+    | '/invoices'
+    | '/projects'
+    | '/tickeds'
   id:
     | '__root__'
     | '/_protected'
@@ -91,6 +115,7 @@ export interface FileRouteTypes {
     | '/otp'
     | '/register'
     | '/_protected/'
+    | '/_protected/(invoices)/invoices'
     | '/_protected/(projects)/projects'
     | '/_protected/(tickeds)/tickeds'
   fileRoutesById: FileRoutesById
@@ -153,17 +178,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedprojectsProjectsRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/(invoices)/invoices': {
+      id: '/_protected/(invoices)/invoices'
+      path: '/invoices'
+      fullPath: '/invoices'
+      preLoaderRoute: typeof ProtectedinvoicesInvoicesRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
 interface ProtectedRouteChildren {
   ProtectedIndexRoute: typeof ProtectedIndexRoute
+  ProtectedinvoicesInvoicesRoute: typeof ProtectedinvoicesInvoicesRoute
   ProtectedprojectsProjectsRoute: typeof ProtectedprojectsProjectsRoute
   ProtectedtickedsTickedsRoute: typeof ProtectedtickedsTickedsRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedIndexRoute: ProtectedIndexRoute,
+  ProtectedinvoicesInvoicesRoute: ProtectedinvoicesInvoicesRoute,
   ProtectedprojectsProjectsRoute: ProtectedprojectsProjectsRoute,
   ProtectedtickedsTickedsRoute: ProtectedtickedsTickedsRoute,
 }

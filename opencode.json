@@ -16,6 +16,9 @@
     ".opencode/rules/shadcn-ui.mdc",
     ".opencode/rules/context-app.mdc"
   ],
+  "skills": {
+    "paths": [".agents/skills"]
+  },
   "references": {
     "docs": {
       "path": "docs",

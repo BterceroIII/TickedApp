@@ -32,6 +32,13 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
@@ -74,6 +81,7 @@ const statusConfig: Record<
 export function ProjectsPage() {
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [viewingProject, setViewingProject] = useState<Project | null>(null)
   const currentUserQuery = useCurrentUser()
   const projectsQuery = useProjects()
   const progressQuery = useProjectsProgress()
@@ -98,13 +106,15 @@ export function ProjectsPage() {
                 <NotificationsBell />
                 {canManageProjects ? (
                   <Button
+                    aria-label="Crear proyecto"
+                    className="size-8 px-0 sm:size-auto sm:h-8 sm:px-2.5"
                     onClick={() => {
                       setEditingProject(null)
                       setShowCreateProject((value) => !value)
                     }}
                   >
-                    <PlusIcon data-icon="inline-start" />
-                    Crear proyecto
+                    <PlusIcon data-icon="inline-start item-center" />
+                    <span className="hidden sm:inline">Crear proyecto</span>
                   </Button>
                 ) : null}
               </div>
@@ -123,7 +133,40 @@ export function ProjectsPage() {
               />
             ) : null}
 
-            <Card className="rounded-2xl bg-card py-0">
+            <div className="grid gap-3 md:hidden">
+              {projectsQuery.isLoading ? (
+                <MobileMessage>Cargando proyectos...</MobileMessage>
+              ) : null}
+              {projectsQuery.isError ? (
+                <MobileMessage>No se pudieron cargar los proyectos desde la API.</MobileMessage>
+              ) : null}
+              {projectsQuery.data?.length ? (
+                projectsQuery.data.map((project) => (
+                  <ProjectMobileCard
+                    key={project.id}
+                    project={project}
+                    progress={progressQuery.data?.find(
+                      (item) => item.projectId === project.id
+                    )}
+                    canManageProjects={canManageProjects}
+                    onView={setViewingProject}
+                    onEdit={
+                      canManageProjects
+                        ? (nextProject) => {
+                            setEditingProject(nextProject)
+                            setShowCreateProject(true)
+                          }
+                        : undefined
+                    }
+                  />
+                ))
+              ) : null}
+              {projectsQuery.data?.length === 0 ? (
+                <MobileMessage>No hay proyectos registrados.</MobileMessage>
+              ) : null}
+            </div>
+
+            <Card className="hidden rounded-2xl bg-card py-0 md:block">
               <CardContent className="p-0">
                 <Table>
                   <TableHeader className="bg-muted/60">
@@ -143,19 +186,17 @@ export function ProjectsPage() {
                       <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
                         Avance
                       </TableHead>
-                      {canManageProjects ? (
-                        <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
-                          Acciones
-                        </TableHead>
-                      ) : null}
+                      <TableHead className="px-4 py-4 text-right text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                        Acciones
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {projectsQuery.isLoading ? (
-                      <TableMessage colSpan={canManageProjects ? 6 : 5}>Cargando proyectos...</TableMessage>
+                      <TableMessage colSpan={6}>Cargando proyectos...</TableMessage>
                     ) : null}
                     {projectsQuery.isError ? (
-                      <TableMessage colSpan={canManageProjects ? 6 : 5}>
+                      <TableMessage colSpan={6}>
                         No se pudieron cargar los proyectos desde la API.
                       </TableMessage>
                     ) : null}
@@ -168,6 +209,7 @@ export function ProjectsPage() {
                             (item) => item.projectId === project.id
                           )}
                           canManageProjects={canManageProjects}
+                          onView={setViewingProject}
                           onEdit={
                             canManageProjects
                               ? (nextProject) => {
@@ -180,7 +222,7 @@ export function ProjectsPage() {
                       ))
                     ) : null}
                     {projectsQuery.data?.length === 0 ? (
-                      <TableMessage colSpan={canManageProjects ? 6 : 5}>
+                      <TableMessage colSpan={6}>
                         No hay proyectos registrados.
                       </TableMessage>
                     ) : null}
@@ -188,6 +230,17 @@ export function ProjectsPage() {
                 </Table>
               </CardContent>
             </Card>
+            <ProjectDetailSheet
+              project={viewingProject}
+              progress={progressQuery.data?.find(
+                (item) => item.projectId === viewingProject?.id
+              )}
+              onOpenChange={(open) => {
+                if (!open) {
+                  setViewingProject(null)
+                }
+              }}
+            />
           </main>
         </SidebarInset>
       </SidebarProvider>
@@ -195,15 +248,70 @@ export function ProjectsPage() {
   )
 }
 
-function ProjectRow({
+function ProjectMobileCard({
   project,
   progress,
   canManageProjects,
+  onView,
   onEdit,
 }: {
   project: Project
   progress?: ProjectProgress
   canManageProjects: boolean
+  onView: (project: Project) => void
+  onEdit?: (project: Project) => void
+}) {
+  const status = statusConfig[project.status]
+  const progressPercentage = progress?.percentage ?? 0
+
+  return (
+    <Card className="rounded-2xl py-0 shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="size-3 rounded-full bg-primary" />
+              <h2 className="truncate text-base font-semibold">{project.name}</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
+              <Badge variant={status.variant}>{status.label}</Badge>
+              <span>Vence {formatDate(project.dateLimit)}</span>
+            </div>
+          </div>
+          <ProjectRowActions
+            project={project}
+            canManageProjects={canManageProjects}
+            onView={onView}
+            onEdit={onEdit}
+          />
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <div className="h-1.5 flex-1 rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+          <span className="w-9 text-right text-xs font-medium text-muted-foreground">
+            {progressPercentage}%
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ProjectRow({
+  project,
+  progress,
+  canManageProjects,
+  onView,
+  onEdit,
+}: {
+  project: Project
+  progress?: ProjectProgress
+  canManageProjects: boolean
+  onView: (project: Project) => void
   onEdit?: (project: Project) => void
 }) {
   const status = statusConfig[project.status]
@@ -239,12 +347,93 @@ function ProjectRow({
           </span>
         </div>
       </TableCell>
-      {canManageProjects ? (
-        <TableCell className="px-4 py-5 text-right">
-          <ProjectRowActions project={project} onEdit={onEdit} />
-        </TableCell>
-      ) : null}
+      <TableCell className="px-4 py-5 text-right">
+        <ProjectRowActions
+          project={project}
+          canManageProjects={canManageProjects}
+          onView={onView}
+          onEdit={onEdit}
+        />
+      </TableCell>
     </TableRow>
+  )
+}
+
+function ProjectDetailSheet({
+  project,
+  progress,
+  onOpenChange,
+}: {
+  project: Project | null
+  progress?: ProjectProgress
+  onOpenChange: (open: boolean) => void
+}) {
+  const status = project ? statusConfig[project.status] : null
+  const progressPercentage = progress?.percentage ?? 0
+
+  return (
+    <Sheet open={Boolean(project)} onOpenChange={onOpenChange}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{project?.name ?? "Detalle del proyecto"}</SheetTitle>
+          <SheetDescription>
+            Vista de solo lectura del proyecto seleccionado.
+          </SheetDescription>
+        </SheetHeader>
+        {project ? (
+          <div className="flex flex-col gap-5 px-4 pb-4">
+            <div className="flex items-center justify-between gap-3 rounded-xl border bg-muted/35 p-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Avance</p>
+                <p className="text-3xl font-semibold tabular-nums">
+                  {progressPercentage}%
+                </p>
+              </div>
+              {status ? <Badge variant={status.variant}>{status.label}</Badge> : null}
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+            <div className="grid gap-4 text-sm">
+              <DetailItem label="Responsable">
+                {project.responsible
+                  ? getUserDisplayName(project.responsible)
+                  : "Sin responsable"}
+              </DetailItem>
+              <DetailItem label="Fecha límite">
+                {formatDate(project.dateLimit)}
+              </DetailItem>
+              <DetailItem label="Tickets resueltos">
+                {progress?.resolvedTickets ?? 0} de {progress?.totalTickets ?? 0}
+              </DetailItem>
+              <DetailItem label="Descripción">
+                {project.description || "Sin descripción registrada."}
+              </DetailItem>
+            </div>
+          </div>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function DetailItem({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-1 rounded-xl border bg-background/60 p-3">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </p>
+      <div className="text-foreground">{children}</div>
+    </div>
   )
 }
 
@@ -439,6 +628,16 @@ function TableMessage({
         {children}
       </TableCell>
     </TableRow>
+  )
+}
+
+function MobileMessage({ children }: { children: React.ReactNode }) {
+  return (
+    <Card className="rounded-2xl py-0">
+      <CardContent className="p-6 text-center text-sm text-muted-foreground">
+        {children}
+      </CardContent>
+    </Card>
   )
 }
 

@@ -1,7 +1,6 @@
 import * as React from "react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -15,6 +14,7 @@ import {
   FolderKanbanIcon,
   HomeIcon,
   MessageSquareIcon,
+  ReceiptTextIcon,
 } from "lucide-react"
 
 const data = {
@@ -34,14 +34,12 @@ const data = {
       url: "/tickeds",
       icon: <MessageSquareIcon />,
     },
-  ],
-  projects: [
     {
-      name: "Odoo CRM",
-      url: "#",
-      icon: <FolderKanbanIcon />,
+      title: "Facturas",
+      url: "/invoices",
+      icon: <ReceiptTextIcon />,
     },
-  ],
+  ]
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -65,7 +63,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser />

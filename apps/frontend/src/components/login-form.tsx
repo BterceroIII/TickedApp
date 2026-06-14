@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router"
+import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 import { cn } from "@/lib/utils"
@@ -19,12 +20,14 @@ import {
 import { Input } from "@/components/ui/input"
 import { getApiErrorMessage } from "@/services/api"
 import { useLogin } from "@/services/auth/auth.service"
+import { dashboardQueryOptions } from "@/services/dashboard/dashboard.service"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const loginMutation = useLogin()
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -38,7 +41,9 @@ export function LoginForm({
         password: String(formData.get("password")),
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
+          queryClient.removeQueries({ queryKey: dashboardQueryOptions.queryKey })
+          await queryClient.prefetchQuery(dashboardQueryOptions)
           toast.success("Sesión iniciada correctamente")
           void navigate({ to: "/" })
         },

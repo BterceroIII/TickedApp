@@ -8,6 +8,7 @@ type EntityLabels = {
 const entities: Record<string, EntityLabels> = {
   project: { singular: "proyecto", masculine: true },
   ticket: { singular: "ticket", masculine: true },
+  invoice: { singular: "factura" },
 }
 
 function entityText(entity: string) {

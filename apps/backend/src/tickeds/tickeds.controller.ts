@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { TickedsService } from './tickeds.service';
 
 import { CreateTickedDto } from './dto/create-ticked.dto';
@@ -24,7 +24,6 @@ import { UserRole, type User } from 'src/generated/prisma/client';
 
 @ApiTags('Tickeds')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
 @Controller('tickeds')
 export class TickedsController {
   constructor(private readonly tickedsService: TickedsService) {}

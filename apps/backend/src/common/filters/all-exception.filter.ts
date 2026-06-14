@@ -34,11 +34,29 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message: string | object = 'Internal server error';
+    let message: string | string[] = 'Internal server error';
+    let error: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      message = exception.getResponse();
+      const exceptionResponse = exception.getResponse();
+
+      if (typeof exceptionResponse === 'string') {
+        message = exceptionResponse;
+      } else if (
+        exceptionResponse &&
+        typeof exceptionResponse === 'object' &&
+        'message' in exceptionResponse
+      ) {
+        const responseMessage = exceptionResponse.message;
+        message = Array.isArray(responseMessage)
+          ? responseMessage.map(String)
+          : String(responseMessage);
+        error =
+          'error' in exceptionResponse
+            ? String(exceptionResponse.error)
+            : undefined;
+      }
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       const mapping = PRISMA_ERROR_MAP[exception.code];
       if (mapping) {
@@ -64,6 +82,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
       path: request.url,
       message,
+      ...(error ? { error } : {}),
     });
   }
 }

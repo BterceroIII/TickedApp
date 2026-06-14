@@ -10,7 +10,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectProgressDto } from './dto/project-progress.dto';
@@ -24,7 +24,6 @@ import { UserRole, type User } from 'src/generated/prisma/client';
 
 @ApiTags('Projects')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
 @Controller('projects')
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}

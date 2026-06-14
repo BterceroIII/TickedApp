@@ -34,9 +34,9 @@ export function NavMain({
   const pathname = useRouterState({ select: (state) => state.location.pathname })
 
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Portal</SidebarGroupLabel>
-      <SidebarMenu>
+    <SidebarGroup className="gap-2">
+      <SidebarGroupLabel className="h-9 text-sm">Portal</SidebarGroupLabel>
+      <SidebarMenu className="gap-1.5">
         {items.map((item) => {
           const hasDropdownTransition = ["Proyectos", "Tickets"].includes(
             item.title
@@ -52,7 +52,13 @@ export function NavMain({
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive}
+                    size="lg"
+                    tooltip={item.title}
+                    className="text-[0.95rem]"
+                  >
                     <Link to={item.url}>
                       {item.icon}
                       <span>{item.title}</span>

@@ -8,7 +8,7 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import {
@@ -115,7 +115,6 @@ export class AuthController {
 
   @Get('user')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user information' })
   @ApiResponse({ status: 200, description: 'Current user information', type: UserResponseDto })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

@@ -23,6 +23,7 @@ async function main() {
   console.log('Seeding database...');
 
   // Clean existing data
+  await prisma.invoice.deleteMany();
   await prisma.ticket.deleteMany();
   await prisma.project.deleteMany();
   await prisma.user.deleteMany();
@@ -156,6 +157,72 @@ async function main() {
   });
 
   console.log('Tickets created: TICK-001 through TICK-005');
+
+  // Create invoices
+  await prisma.invoice.createMany({
+    data: [
+      {
+        id: 'INV-001',
+        userId: admin.id,
+        concept: 'Desarrollo Frontend Q2',
+        amount: 3200,
+        status: 'PENDIENTE',
+        dueDate: new Date('2026-06-30'),
+      },
+      {
+        id: 'INV-002',
+        userId: admin.id,
+        concept: 'Consultoría UX',
+        amount: 1850,
+        status: 'VENCIDA',
+        dueDate: new Date('2026-06-05'),
+      },
+      {
+        id: 'INV-003',
+        userId: admin.id,
+        concept: 'Soporte mensual Mayo',
+        amount: 900,
+        status: 'PAGADA',
+        dueDate: new Date('2026-05-31'),
+        paidAt: new Date('2026-05-28'),
+      },
+      {
+        id: 'INV-004',
+        userId: user1.id,
+        concept: 'Sprint App Móvil',
+        amount: 2400,
+        status: 'PENDIENTE',
+        dueDate: new Date('2026-07-10'),
+      },
+      {
+        id: 'INV-005',
+        userId: user1.id,
+        concept: 'Mantenimiento portal cliente',
+        amount: 750,
+        status: 'PAGADA',
+        dueDate: new Date('2026-06-10'),
+        paidAt: new Date('2026-06-08'),
+      },
+      {
+        id: 'INV-006',
+        userId: user2.id,
+        concept: 'Integración CRM',
+        amount: 1650,
+        status: 'VENCIDA',
+        dueDate: new Date('2026-06-01'),
+      },
+      {
+        id: 'INV-007',
+        userId: user2.id,
+        concept: 'Bolsa de horas soporte',
+        amount: 600,
+        status: 'PENDIENTE',
+        dueDate: new Date('2026-07-05'),
+      },
+    ],
+  });
+
+  console.log('Invoices created: INV-001 through INV-007');
   console.log('Database seeded successfully!');
 }
 

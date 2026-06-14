@@ -10,22 +10,54 @@ export const api = axios.create({
   },
 })
 
+const errorTranslations: Record<string, string> = {
+  "User not found": "El usuario no existe",
+  "Not Found": "Recurso no encontrado",
+  "Account is not confirmed": "La cuenta no está confirmada",
+  "Incorrect password": "Contraseña incorrecta",
+  "Invalid token": "Token inválido",
+  "An account with this email is already registered":
+    "Ya existe una cuenta registrada con este correo",
+  "An error occurred": "Ocurrió un error",
+  "Internal server error": "Ocurrió un error interno",
+}
+
 export function getApiErrorMessage(error: unknown) {
   if (!axios.isAxiosError<ApiErrorResponse>(error)) {
     return "Ocurrió un error inesperado"
   }
 
-  const message = error.response?.data.message
+  const message = toErrorText(error.response?.data.message)
+
+  return (
+    translateError(message) ??
+    translateError(error.response?.data.error) ??
+    "No se pudo completar la solicitud"
+  )
+}
+
+function toErrorText(message: ApiErrorResponse["message"]): string | undefined {
+  if (!message) return undefined
 
   if (Array.isArray(message)) {
-    return message.join(". ")
+    return message.map(toErrorText).filter(Boolean).join(". ")
   }
 
-  return message ?? error.response?.data.error ?? "No se pudo completar la solicitud"
+  if (typeof message === "object") {
+    return toErrorText(message.message) ?? message.error
+  }
+
+  return translateError(String(message))
+}
+
+function translateError(message: string | undefined) {
+  if (!message) return undefined
+
+  return errorTranslations[message] ?? message
 }
 
 export type ApiErrorResponse = {
-  message?: string | string[]
+  message?: string | string[] | { message?: string | string[]; error?: string }
   error?: string
   statusCode?: number
 }

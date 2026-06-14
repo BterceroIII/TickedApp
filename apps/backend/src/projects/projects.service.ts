@@ -15,6 +15,7 @@ import {
   ProjectWithResponsible,
 } from './types/project-responsible.type';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { OdooService } from 'src/common/services/odoo.service';
 
 @Injectable()
 export class ProjectsService {
@@ -23,10 +24,11 @@ export class ProjectsService {
   constructor(
     private prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly odooService: OdooService,
   ) {}
 
   async create(dto: CreateProjectDto): Promise<ProjectWithResponsible> {
-    const project = await this.prisma.project.create({
+    let project = await this.prisma.project.create({
       data: {
         ...dto,
         responsible: { connect: { id: dto.responsible } },
@@ -38,11 +40,21 @@ export class ProjectsService {
       projectId: project.id,
       projectName: project.name,
     });
+    const odooProjectId = await this.syncProjectWithOdoo(project);
+    if (odooProjectId) {
+      project = await this.prisma.project.update({
+        where: { id: project.id },
+        data: { odooProjectId },
+        include: projectWithResponsibleInclude,
+      });
+    }
     this.logger.log(`Project created successfully`);
     return project;
   }
 
-  async findAll(currentUser: AuthenticatedUser): Promise<ProjectWithResponsible[]> {
+  async findAll(
+    currentUser: AuthenticatedUser,
+  ): Promise<ProjectWithResponsible[]> {
     const projects = await this.prisma.project.findMany({
       where: this.getUserProjectWhere(currentUser),
       include: projectWithResponsibleInclude,
@@ -133,6 +145,7 @@ export class ProjectsService {
         projectName: project.name,
       });
     }
+    await this.syncProjectUpdateWithOdoo(project);
     this.logger.log(`Project #${id} updated successfully`);
     return project;
   }
@@ -179,6 +192,69 @@ export class ProjectsService {
 
     if (!project) {
       throw new ForbiddenException('You can only access assigned projects');
+    }
+  }
+
+  private async syncProjectWithOdoo(
+    project: ProjectWithResponsible,
+  ): Promise<number | null> {
+    try {
+      const odooProjectId = await this.odooService.createProject({
+        name: project.name,
+        description: project.description,
+        dateStart: project.createdAt,
+        dateLimit: project.dateLimit,
+        responsibleEmail: project.responsible.email,
+      });
+
+      if (odooProjectId) {
+        this.logger.log(`Project synced with Odoo #${odooProjectId}`);
+      }
+
+      return odooProjectId;
+    } catch (error) {
+      this.logger.warn(
+        `Project created locally but Odoo sync failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async syncProjectUpdateWithOdoo(
+    project: ProjectWithResponsible,
+  ): Promise<void> {
+    try {
+      if (!project.odooProjectId) {
+        const odooProjectId = await this.syncProjectWithOdoo(project);
+
+        if (odooProjectId) {
+          await this.prisma.project.update({
+            where: { id: project.id },
+            data: { odooProjectId },
+          });
+        }
+
+        return;
+      }
+
+      const updated = await this.odooService.updateProject({
+        odooProjectId: project.odooProjectId,
+        name: project.name,
+        description: project.description,
+        dateStart: project.createdAt,
+        dateLimit: project.dateLimit,
+        responsibleEmail: project.responsible.email,
+      });
+
+      if (updated) {
+        this.logger.log(
+          `Project #${project.id} updated in Odoo #${project.odooProjectId}`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Project #${project.id} updated locally but Odoo update failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }

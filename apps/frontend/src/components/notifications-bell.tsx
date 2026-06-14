@@ -103,7 +103,7 @@ export function NotificationsBell() {
           </Button>
         </div>
         <Separator />
-        <div className="max-h-[24rem] overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto">
           {notificationsQuery.isLoading ? (
             <NotificationMessage>Cargando notificaciones...</NotificationMessage>
           ) : null}

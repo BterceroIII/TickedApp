@@ -13,6 +13,14 @@ const requiredFutureDate = (message: string) =>
       message: "La fecha no puede ser pasada",
     })
 
+const requiredDate = (message: string) =>
+  z
+    .string()
+    .min(1, { message })
+    .refine((value) => !Number.isNaN(new Date(`${value}T00:00:00`).getTime()), {
+      message: "Selecciona una fecha válida",
+    })
+
 function isFutureOrToday(value: string) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return false
@@ -49,6 +57,10 @@ export const TicketStatusSchema = z.enum(["ABIERTO", "EN_PROCESO", "RESUELTO"], 
 
 export const TicketPrioritySchema = z.enum(["ALTA", "MEDIA", "BAJA"], {
   message: "Selecciona una prioridad válida",
+})
+
+export const InvoiceStatusSchema = z.enum(["PENDIENTE", "VENCIDA", "PAGADA"], {
+  message: "Selecciona un estado válido",
 })
 
 export const ProjectSchema = z.object({
@@ -101,9 +113,18 @@ export const CreateTickedSchema = z.object({
   description: optionalTrimmedString,
 })
 
+export const CreateInvoiceSchema = z.object({
+  concept: z.string().trim().min(1, { message: "El concepto no puede estar vacío" }),
+  amount: z.coerce.number().positive({ message: "El monto debe ser mayor a cero" }),
+  status: InvoiceStatusSchema,
+  dueDate: requiredDate("Selecciona una fecha límite"),
+  paidAt: z.string().optional(),
+})
+
 export type ResponseType = z.infer<typeof ResponseSchema>
 export type UserType = z.infer<typeof UserSchema>
 export type ProjectType = z.infer<typeof ProjectSchema>
 export type ProjectFormType = z.infer<typeof CreateProjectSchema>
 export type TickedType = z.infer<typeof TickedSchema>
 export type TickedFormType = z.infer<typeof CreateTickedSchema>
+export type InvoiceFormType = z.infer<typeof CreateInvoiceSchema>

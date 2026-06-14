@@ -8,6 +8,8 @@ import { TickedsModule } from './tickeds/tickeds.module';
 import { AuthModule } from './auth/auth.module';
 import { EmailsModule } from './emails/emails.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { InvoicesModule } from './invoices/invoices.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     TickedsModule,
     EmailsModule,
     NotificationsModule,
+    DashboardModule,
+    InvoicesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

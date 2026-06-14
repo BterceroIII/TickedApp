@@ -15,6 +15,7 @@ import {
   TicketWithProject,
 } from './types/ticked-project.type';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { OdooService } from 'src/common/services/odoo.service';
 
 @Injectable()
 export class TickedsService {
@@ -23,6 +24,7 @@ export class TickedsService {
   constructor(
     private prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly odooService: OdooService,
   ) {}
 
   async create(dto: CreateTickedDto): Promise<TicketWithProject> {
@@ -52,6 +54,7 @@ export class TickedsService {
         projectId: ticket.projectId,
       });
     }
+    await this.syncTicketWithOdoo(ticket);
     this.logger.log(`Ticket #${id} created successfully`);
     return ticket;
   }
@@ -85,10 +88,7 @@ export class TickedsService {
     return ticket;
   }
 
-  async update(
-    id: string,
-    dto: UpdateTickedDto,
-  ): Promise<TicketWithProject> {
+  async update(id: string, dto: UpdateTickedDto): Promise<TicketWithProject> {
     const exists = await this.prisma.ticket.findUnique({
       where: { id },
       select: { id: true, assignedToId: true },
@@ -113,6 +113,7 @@ export class TickedsService {
         projectId: ticket.projectId,
       });
     }
+    await this.syncTicketUpdateWithOdoo(ticket);
     this.logger.log(`Ticket #${id} updated successfully`);
     return ticket;
   }
@@ -153,5 +154,219 @@ export class TickedsService {
     if (!user) {
       throw new NotFoundException(`Assigned user #${userId} not found`);
     }
+  }
+
+  private async syncTicketWithOdoo(ticket: TicketWithProject): Promise<void> {
+    try {
+      const odooTicketId = await this.odooService.createTicket({
+        title: ticket.title,
+        description: ticket.description,
+        priority: ticket.priority,
+        assignedUserEmail: ticket.assignedTo?.email,
+      });
+
+      if (odooTicketId) {
+        await this.prisma.ticket.update({
+          where: { id: ticket.id },
+          data: { odooTicketId },
+        });
+        this.logger.log(
+          `Ticket #${ticket.id} synced with Odoo #${odooTicketId}`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Ticket #${ticket.id} created locally but Odoo sync failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    try {
+      const odooProjectId = await this.ensureOdooProjectId(
+        ticket.project.id,
+        ticket.project.name,
+        ticket.project.description,
+        ticket.project.createdAt,
+        ticket.project.dateLimit,
+        ticket.project.responsible.email,
+        ticket.project.odooProjectId,
+      );
+
+      if (!odooProjectId) {
+        this.logger.warn(
+          `Ticket #${ticket.id} was not synced as an Odoo task because project #${ticket.project.id} has no Odoo ID`,
+        );
+        return;
+      }
+
+      const odooTaskId = await this.odooService.createProjectTask({
+        localTicketId: ticket.id,
+        title: ticket.title,
+        description: ticket.description,
+        priority: ticket.priority,
+        estimatedDate: ticket.estimatedDate,
+        assignedUserEmail: ticket.assignedTo?.email,
+        localProjectName: ticket.project.name,
+        odooProjectId,
+      });
+
+      if (odooTaskId) {
+        await this.prisma.ticket.update({
+          where: { id: ticket.id },
+          data: { odooTaskId },
+        });
+        this.logger.log(
+          `Ticket #${ticket.id} synced as Odoo project task #${odooTaskId}`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Ticket #${ticket.id} created locally but Odoo task sync failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async syncTicketUpdateWithOdoo(
+    ticket: TicketWithProject,
+  ): Promise<void> {
+    try {
+      if (ticket.odooTicketId) {
+        const updated = await this.odooService.updateTicket({
+          odooTicketId: ticket.odooTicketId,
+          title: ticket.title,
+          description: ticket.description,
+          priority: ticket.priority,
+          assignedUserEmail: ticket.assignedTo?.email,
+        });
+
+        if (updated) {
+          this.logger.log(
+            `Ticket #${ticket.id} updated in Odoo helpdesk #${ticket.odooTicketId}`,
+          );
+        }
+      } else {
+        const odooTicketId = await this.odooService.createTicket({
+          title: ticket.title,
+          description: ticket.description,
+          priority: ticket.priority,
+          assignedUserEmail: ticket.assignedTo?.email,
+        });
+
+        if (odooTicketId) {
+          await this.prisma.ticket.update({
+            where: { id: ticket.id },
+            data: { odooTicketId },
+          });
+          this.logger.log(
+            `Ticket #${ticket.id} synced with Odoo helpdesk #${odooTicketId} after update`,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Ticket #${ticket.id} updated locally but Odoo helpdesk update failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
+    try {
+      const odooProjectId = await this.ensureOdooProjectId(
+        ticket.project.id,
+        ticket.project.name,
+        ticket.project.description,
+        ticket.project.createdAt,
+        ticket.project.dateLimit,
+        ticket.project.responsible.email,
+        ticket.project.odooProjectId,
+      );
+
+      if (!odooProjectId) {
+        this.logger.warn(
+          `Ticket #${ticket.id} task was not updated because project #${ticket.project.id} has no Odoo ID`,
+        );
+        return;
+      }
+
+      if (ticket.odooTaskId) {
+        const updated = await this.odooService.updateProjectTask({
+          odooTaskId: ticket.odooTaskId,
+          localTicketId: ticket.id,
+          title: ticket.title,
+          description: ticket.description,
+          priority: ticket.priority,
+          estimatedDate: ticket.estimatedDate,
+          assignedUserEmail: ticket.assignedTo?.email,
+          localProjectName: ticket.project.name,
+          odooProjectId,
+        });
+
+        if (updated) {
+          this.logger.log(
+            `Ticket #${ticket.id} updated in Odoo project task #${ticket.odooTaskId}`,
+          );
+        }
+        return;
+      }
+
+      const odooTaskId = await this.odooService.createProjectTask({
+        localTicketId: ticket.id,
+        title: ticket.title,
+        description: ticket.description,
+        priority: ticket.priority,
+        estimatedDate: ticket.estimatedDate,
+        assignedUserEmail: ticket.assignedTo?.email,
+        localProjectName: ticket.project.name,
+        odooProjectId,
+      });
+
+      if (odooTaskId) {
+        await this.prisma.ticket.update({
+          where: { id: ticket.id },
+          data: { odooTaskId },
+        });
+        this.logger.log(
+          `Ticket #${ticket.id} synced as Odoo project task #${odooTaskId} after update`,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Ticket #${ticket.id} updated locally but Odoo task update failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async ensureOdooProjectId(
+    projectId: number,
+    projectName: string,
+    projectDescription: string | null,
+    projectCreatedAt: Date,
+    projectDateLimit: Date,
+    responsibleEmail: string,
+    odooProjectId: number | null,
+  ): Promise<number | null> {
+    if (odooProjectId) {
+      return odooProjectId;
+    }
+
+    const newOdooProjectId = await this.odooService.createProject({
+      name: projectName,
+      description: projectDescription,
+      dateStart: projectCreatedAt,
+      dateLimit: projectDateLimit,
+      responsibleEmail,
+    });
+
+    if (!newOdooProjectId) {
+      return null;
+    }
+
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { odooProjectId: newOdooProjectId },
+    });
+
+    this.logger.log(
+      `Project #${projectId} synced with Odoo #${newOdooProjectId} before creating task`,
+    );
+
+    return newOdooProjectId;
   }
 }

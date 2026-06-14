@@ -1,4 +1,4 @@
-import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { EyeIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -15,9 +15,13 @@ import { useRemoveProject } from "@/services/projects/projects.service"
 
 export function ProjectRowActions({
   project,
+  canManageProjects,
+  onView,
   onEdit,
 }: {
   project: Project
+  canManageProjects: boolean
+  onView: (project: Project) => void
   onEdit?: (project: Project) => void
 }) {
   const removeProject = useRemoveProject()
@@ -32,24 +36,32 @@ export function ProjectRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => onEdit?.(project)} disabled={!onEdit}>
-          <PencilIcon />
-          Editar
+        <DropdownMenuItem onClick={() => onView(project)}>
+          <EyeIcon />
+          Ver detalle
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={removeProject.isPending}
-          onClick={() =>
-            removeProject.mutate(project.id, {
-              onSuccess: notifyDeleted,
-              onError: () => notifyError("eliminar"),
-            })
-          }
-        >
-          <Trash2Icon />
-          Eliminar
-        </DropdownMenuItem>
+        {canManageProjects ? (
+          <>
+            <DropdownMenuItem onClick={() => onEdit?.(project)} disabled={!onEdit}>
+              <PencilIcon />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={removeProject.isPending}
+              onClick={() =>
+                removeProject.mutate(project.id, {
+                  onSuccess: notifyDeleted,
+                  onError: () => notifyError("eliminar"),
+                })
+              }
+            >
+              <Trash2Icon />
+              Eliminar
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

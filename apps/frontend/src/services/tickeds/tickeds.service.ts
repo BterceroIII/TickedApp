@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/services/api"
 import type { User } from "@/services/auth/users.service"
+import {
+  dashboardQueryKey,
+  dashboardQueryOptions,
+} from "@/services/dashboard/dashboard.service"
 import { projectProgressQueryKey } from "@/services/projects/projects.service"
 
 export type TicketStatus = "ABIERTO" | "EN_PROCESO" | "RESUELTO"
@@ -85,7 +89,9 @@ export function useCreateTicked() {
     mutationFn: createTicked,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: tickedsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey })
       void queryClient.invalidateQueries({ queryKey: projectProgressQueryKey })
+      void queryClient.prefetchQuery(dashboardQueryOptions)
     },
   })
 }
@@ -98,7 +104,9 @@ export function useUpdateTicked() {
       updateTicked(id, input),
     onSuccess: (ticked) => {
       void queryClient.invalidateQueries({ queryKey: tickedsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey })
       void queryClient.invalidateQueries({ queryKey: projectProgressQueryKey })
+      void queryClient.prefetchQuery(dashboardQueryOptions)
       void queryClient.invalidateQueries({
         queryKey: [...tickedsQueryKey, ticked.id],
       })
@@ -113,7 +121,9 @@ export function useRemoveTicked() {
     mutationFn: removeTicked,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: tickedsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey })
       void queryClient.invalidateQueries({ queryKey: projectProgressQueryKey })
+      void queryClient.prefetchQuery(dashboardQueryOptions)
     },
   })
 }

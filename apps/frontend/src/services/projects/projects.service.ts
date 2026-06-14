@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { api } from "@/services/api"
 import type { User } from "@/services/auth/users.service"
+import {
+  dashboardQueryKey,
+  dashboardQueryOptions,
+} from "@/services/dashboard/dashboard.service"
 
 export type ProjectStatus =
   | "EN_PROGRESO"
@@ -108,6 +112,8 @@ export function useCreateProject() {
     mutationFn: createProject,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey })
+      void queryClient.prefetchQuery(dashboardQueryOptions)
     },
   })
 }
@@ -120,6 +126,8 @@ export function useUpdateProject() {
       updateProject(id, input),
     onSuccess: (project) => {
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey })
+      void queryClient.prefetchQuery(dashboardQueryOptions)
       void queryClient.invalidateQueries({
         queryKey: [...projectsQueryKey, project.id],
       })
@@ -134,6 +142,8 @@ export function useRemoveProject() {
     mutationFn: removeProject,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: projectsQueryKey })
+      void queryClient.invalidateQueries({ queryKey: dashboardQueryKey })
+      void queryClient.prefetchQuery(dashboardQueryOptions)
     },
   })
 }
