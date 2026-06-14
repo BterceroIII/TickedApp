@@ -49,9 +49,17 @@ async function bootstrap() {
   });
   SwaggerModule.setup('api/v1/docs', app, document);
 
-  app
-    .getHttpAdapter()
-    .get('/api/v1/swagger.yaml', (req: Request, res: Response) => {
+  const httpAdapter = app.getHttpAdapter();
+
+  httpAdapter.get('/', (_req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      api: '/api/v1',
+      docs: '/api/v1/docs',
+    });
+  });
+
+  httpAdapter.get('/api/v1/swagger.yaml', (req: Request, res: Response) => {
       const swaggerYaml = YAML.stringify(document);
       res.setHeader('Content-Type', 'application/x-yaml');
       res.send(swaggerYaml);
