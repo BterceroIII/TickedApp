@@ -1,6 +1,7 @@
 import axios from "axios"
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api/v1"
+export const AUTH_TOKEN_STORAGE_KEY = "tickedapp.auth.token"
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -8,6 +9,16 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+})
+
+api.interceptors.request.use((config) => {
+  const token = window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  return config
 })
 
 const errorTranslations: Record<string, string> = {

@@ -71,10 +71,10 @@ export class AuthController {
   async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; token: string }> {
     const token = await this.authService.login(loginDto);
     response.cookie(authCookieName, token, getAuthCookieOptions());
-    return { message: 'Sesión iniciada correctamente' };
+    return { message: 'Sesión iniciada correctamente', token };
   }
 
   @Post('logout')

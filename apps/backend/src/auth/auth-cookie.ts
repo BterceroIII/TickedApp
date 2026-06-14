@@ -10,10 +10,12 @@ export const authCookieNames = [authCookieName, 'tickedapp.session'] as const;
 export const authCookieMaxAge = 1000 * 60 * 60 * 24 * 30;
 
 export function getAuthCookieOptions(): CookieOptions {
+  const isProduction = process.env.NODE_ENV === 'production';
+
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/',
     maxAge: authCookieMaxAge,
   };

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { api } from "@/services/api"
+import { api, AUTH_TOKEN_STORAGE_KEY } from "@/services/api"
 import { dashboardQueryKey } from "@/services/dashboard/dashboard.service"
 
 export type CreateAccountInput = {
@@ -24,6 +24,7 @@ export type AuthMessageResponse = {
 
 export type LoginResponse = {
   message: string
+  token: string
 }
 
 export type CurrentUser = {
@@ -83,7 +84,8 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: login,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, data.token)
       void queryClient.invalidateQueries({ queryKey: currentUserQueryKey })
     },
   })
@@ -95,6 +97,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: logout,
     onSuccess: () => {
+      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
       void queryClient.removeQueries({ queryKey: currentUserQueryKey })
       void queryClient.removeQueries({ queryKey: dashboardQueryKey })
     },
