@@ -2,11 +2,6 @@ import { useEffect, useRef } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { API_BASE_URL, api } from "@/services/api"
-import {
-  projectProgressQueryKey,
-  projectsQueryKey,
-} from "@/services/projects/projects.service"
-import { tickedsQueryKey } from "@/services/tickeds/tickeds.service"
 
 export type Notification = {
   id: number
@@ -69,18 +64,15 @@ export function useNotificationEvents(
       withCredentials: true,
     })
 
-    function syncRelatedQueries() {
+    function syncNotifications() {
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKey })
-      void queryClient.invalidateQueries({ queryKey: projectsQueryKey })
-      void queryClient.invalidateQueries({ queryKey: projectProgressQueryKey })
-      void queryClient.invalidateQueries({ queryKey: tickedsQueryKey })
     }
 
     function handleNotification(event: MessageEvent) {
       const payload = JSON.parse(event.data) as NotificationStreamEvent
 
       if ("connected" in payload) {
-        syncRelatedQueries()
+        syncNotifications()
         return
       }
 
@@ -101,25 +93,10 @@ export function useNotificationEvents(
 
         return [notification, ...current]
       })
-      syncRelatedQueries()
-
-      if (notification.projectId) {
-        void queryClient.invalidateQueries({
-          queryKey: [...projectsQueryKey, notification.projectId],
-        })
-      }
-
-      if (notification.ticketId) {
-        void queryClient.invalidateQueries({ queryKey: tickedsQueryKey })
-        void queryClient.invalidateQueries({
-          queryKey: [...tickedsQueryKey, notification.ticketId],
-        })
-      }
-
       onNotificationRef.current?.(notification)
     }
 
-    eventSource.onopen = syncRelatedQueries
+    eventSource.onopen = syncNotifications
     eventSource.onmessage = handleNotification
     eventSource.addEventListener("notification", handleNotification)
 

@@ -73,7 +73,6 @@ export function TickedsPage() {
   const [showCreateTicket, setShowCreateTicket] = useState(false)
   const [editingTicked, setEditingTicked] = useState<Ticked | null>(null)
   const tickedsQuery = useTickeds()
-  const projectsQuery = useProjects()
 
   return (
     <TooltipProvider>
@@ -134,7 +133,7 @@ export function TickedsPage() {
                     projectName={getProjectName(
                       ticked.projectId,
                       ticked.project?.name,
-                      projectsQuery.data
+                      undefined
                     )}
                     onEdit={(nextTicked) => {
                       setEditingTicked(nextTicked)
@@ -216,7 +215,7 @@ export function TickedsPage() {
                               <Badge variant={priority.variant}>{priority.label}</Badge>
                             </TableCell>
                             <TableCell className="px-4 py-5 text-muted-foreground">
-                              {getProjectName(ticked.projectId, ticked.project?.name, projectsQuery.data)}
+                              {getProjectName(ticked.projectId, ticked.project?.name, undefined)}
                             </TableCell>
                             <TableCell className="px-4 py-5 text-muted-foreground">
                               {ticked.assignedTo
