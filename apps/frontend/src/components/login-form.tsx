@@ -107,7 +107,6 @@ export function LoginForm({
                     to="/login"
                     className="ml-auto text-sm underline-offset-4 hover:underline"
                   >
-                    ¿Olvidaste tu contraseña?
                   </Link>
                 </div>
                 <Input
