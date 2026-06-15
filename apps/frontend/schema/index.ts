@@ -68,6 +68,27 @@ export const InvoiceStatusSchema = z.enum(["PENDIENTE", "VENCIDA", "PAGADA"], {
   message: "Selecciona un estado válido",
 })
 
+export const LoginSchema = z.object({
+  email: z.email({ message: "Ingresa un email válido" }),
+  password: z.string().min(1, { message: "Ingresa tu contraseña" }),
+})
+
+export const SignupSchema = z
+  .object({
+    name: z.string().trim().min(1, { message: "Ingresa tu nombre" }),
+    email: z.email({ message: "Ingresa un email válido" }),
+    password: z.string().min(8, { message: "La contraseña debe tener al menos 8 caracteres" }),
+    confirmPassword: z.string().min(1, { message: "Confirma tu contraseña" }),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  })
+
+export const OtpSchema = z.object({
+  token: z.string().regex(/^\d{6}$/, { message: "Ingresa un código de 6 dígitos" }),
+})
+
 export const ProjectSchema = z.object({
   id: z.number(),
   name: z.string(),
@@ -143,3 +164,6 @@ export type ProjectFormType = z.infer<typeof CreateProjectSchema>
 export type TickedType = z.infer<typeof TickedSchema>
 export type TickedFormType = z.infer<typeof CreateTickedSchema>
 export type InvoiceFormType = z.infer<typeof CreateInvoiceSchema>
+export type LoginFormType = z.infer<typeof LoginSchema>
+export type SignupFormType = z.infer<typeof SignupSchema>
+export type OtpFormType = z.infer<typeof OtpSchema>

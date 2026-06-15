@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowLeftIcon, FileTextIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
@@ -75,6 +75,18 @@ export function InvoicesPage() {
   const [showCreateInvoice, setShowCreateInvoice] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const invoicesQuery = useInvoices()
+
+  useEffect(() => {
+    const editInvoiceId = new URLSearchParams(window.location.search).get("editInvoice")
+    if (!editInvoiceId || !invoicesQuery.data?.length) return
+
+    const invoice = invoicesQuery.data.find((item) => item.id === editInvoiceId)
+    if (!invoice) return
+
+    setEditingInvoice(invoice)
+    setShowCreateInvoice(true)
+    window.history.replaceState(null, "", window.location.pathname)
+  }, [invoicesQuery.data])
 
   return (
     <TooltipProvider>
@@ -405,22 +417,22 @@ function CreateInvoiceCard({
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle>{invoice ? "Editar factura" : "Crear factura"}</CardTitle>
-        <CardDescription>
-          {invoice
-            ? "Actualiza los datos principales de la factura."
-            : "Registra una factura asociada a tu cuenta."}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-baseline gap-4">
+        <Button variant="outline" type="button" onClick={onDone}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver
+        </Button>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{invoice ? "Editar factura" : "Crear factura"}</CardTitle>
+          <CardDescription>
+            {invoice
+              ? "Actualiza los datos principales de la factura."
+              : "Registra una factura asociada a tu cuenta."}
+          </CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-          <div className="md:col-span-2">
-            <Button variant="outline" type="button" onClick={onDone}>
-              <ArrowLeftIcon data-icon="inline-start" />
-              Volver
-            </Button>
-          </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="invoice-concept">Concepto</Label>
             <Input
@@ -449,7 +461,6 @@ function CreateInvoiceCard({
                 setErrors((current) => ({ ...current, amount: undefined }))
               }}
               aria-invalid={Boolean(errors.amount)}
-              required
             />
             {errors.amount ? <p className="text-sm text-destructive">{errors.amount}</p> : null}
           </div>
@@ -484,7 +495,6 @@ function CreateInvoiceCard({
               setErrors((current) => ({ ...current, dueDate: undefined }))
             }}
             error={errors.dueDate}
-            required
           />
           <div className="flex items-end justify-end gap-2 md:col-span-2">
             <Button variant="outline" type="button" onClick={onDone}>

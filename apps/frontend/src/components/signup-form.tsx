@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { toast } from "sonner"
 
@@ -13,12 +14,16 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { getApiErrorMessage } from "@/services/api"
 import { useCreateAccount } from "@/services/auth/auth.service"
+import { SignupSchema } from "../../schema"
+
+type FormErrors = Partial<Record<"name" | "email" | "password" | "confirmPassword", string>>
 
 export function SignupForm({
   className,
@@ -26,24 +31,31 @@ export function SignupForm({
 }: React.ComponentProps<"div">) {
   const navigate = useNavigate()
   const createAccountMutation = useCreateAccount()
+  const [errors, setErrors] = useState<FormErrors>({})
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
-    const password = String(formData.get("password"))
-    const confirmPassword = String(formData.get("confirm-password"))
+    const result = SignupSchema.safeParse({
+      name: String(formData.get("name")),
+      email: String(formData.get("email")),
+      password: String(formData.get("password")),
+      confirmPassword: String(formData.get("confirm-password")),
+    })
 
-    if (password !== confirmPassword) {
-      toast.error("Las contraseñas no coinciden")
+    if (!result.success) {
+      setErrors(getFormErrors(result.error.issues))
       return
     }
 
+    setErrors({})
+
     createAccountMutation.mutate(
       {
-        name: String(formData.get("name")),
-        email: String(formData.get("email")),
-        password,
+        name: result.data.name,
+        email: result.data.email,
+        password: result.data.password,
       },
       {
         onSuccess: (data) => {
@@ -80,8 +92,10 @@ export function SignupForm({
                   type="text"
                   placeholder="Sofía Morales"
                   autoComplete="name"
-                  required
+                  aria-invalid={Boolean(errors.name)}
+                  onChange={() => setErrors((current) => ({ ...current, name: undefined }))}
                 />
+                <FieldError>{errors.name}</FieldError>
               </Field>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -91,8 +105,10 @@ export function SignupForm({
                   type="email"
                   placeholder="cliente@empresa.com"
                   autoComplete="email"
-                  required
+                  aria-invalid={Boolean(errors.email)}
+                  onChange={() => setErrors((current) => ({ ...current, email: undefined }))}
                 />
+                <FieldError>{errors.email}</FieldError>
               </Field>
               <Field>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -103,8 +119,10 @@ export function SignupForm({
                       name="password"
                       type="password"
                       autoComplete="new-password"
-                      required
+                      aria-invalid={Boolean(errors.password)}
+                      onChange={() => setErrors((current) => ({ ...current, password: undefined }))}
                     />
+                    <FieldError>{errors.password}</FieldError>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="confirm-password">
@@ -115,8 +133,10 @@ export function SignupForm({
                       name="confirm-password"
                       type="password"
                       autoComplete="new-password"
-                      required
+                      aria-invalid={Boolean(errors.confirmPassword)}
+                      onChange={() => setErrors((current) => ({ ...current, confirmPassword: undefined }))}
                     />
+                    <FieldError>{errors.confirmPassword}</FieldError>
                   </Field>
                 </div>
                 <FieldDescription>
@@ -142,4 +162,12 @@ export function SignupForm({
       </FieldDescription>
     </div>
   )
+}
+
+function getFormErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  return issues.reduce<FormErrors>((errors, issue) => {
+    const field = String(issue.path[0]) as keyof FormErrors
+    if (!errors[field]) errors[field] = issue.message
+    return errors
+  }, {})
 }

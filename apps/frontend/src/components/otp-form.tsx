@@ -14,6 +14,7 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
@@ -25,25 +26,31 @@ import {
 } from "@/components/ui/input-otp"
 import { getApiErrorMessage } from "@/services/api"
 import { useConfirmAccount } from "@/services/auth/auth.service"
+import { OtpSchema } from "../../schema"
 
 export function OtpForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const [otp, setOtp] = useState("")
+  const [error, setError] = useState("")
   const navigate = useNavigate()
   const confirmAccountMutation = useConfirmAccount()
-  const isValidOtp = otp.length === 6
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!isValidOtp) {
+    const result = OtpSchema.safeParse({ token: otp })
+
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? "Ingresa un código válido")
       return
     }
 
+    setError("")
+
     confirmAccountMutation.mutate(
-      { token: otp },
+      { token: result.data.token },
       {
         onSuccess: (data) => {
           toast.success(data.message)
@@ -76,8 +83,12 @@ export function OtpForm({
                   id="otp"
                   maxLength={6}
                   value={otp}
-                  onChange={setOtp}
+                  onChange={(value) => {
+                    setOtp(value)
+                    setError("")
+                  }}
                   containerClassName="justify-center"
+                  aria-invalid={Boolean(error)}
                 >
                   <InputOTPGroup>
                     <InputOTPSlot index={0} />
@@ -94,11 +105,12 @@ export function OtpForm({
                 <FieldDescription className="text-center">
                   Usa el código de confirmación recibido por email.
                 </FieldDescription>
+                <FieldError className="text-center">{error}</FieldError>
               </Field>
               <Field>
                 <Button
                   type="submit"
-                  disabled={!isValidOtp || confirmAccountMutation.isPending}
+                  disabled={confirmAccountMutation.isPending}
                 >
                   {confirmAccountMutation.isPending
                     ? "Validando..."

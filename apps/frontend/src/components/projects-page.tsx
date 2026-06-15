@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeftIcon,
   FolderKanbanIcon,
@@ -96,6 +96,32 @@ export function ProjectsPage() {
   const projectsQuery = useProjects()
   const progressQuery = useProjectsProgress()
   const canManageProjects = currentUserQuery.data?.role === "ADMIN"
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const editProjectId = Number(searchParams.get("editProject"))
+    const viewProjectId = Number(searchParams.get("viewProject"))
+
+    if (!projectsQuery.data?.length) return
+
+    if (canManageProjects && Number.isFinite(editProjectId) && editProjectId > 0) {
+      const project = projectsQuery.data.find((item) => item.id === editProjectId)
+      if (!project) return
+
+      setEditingProject(project)
+      setShowCreateProject(true)
+      window.history.replaceState(null, "", window.location.pathname)
+      return
+    }
+
+    if (Number.isFinite(viewProjectId) && viewProjectId > 0) {
+      const project = projectsQuery.data.find((item) => item.id === viewProjectId)
+      if (!project) return
+
+      setViewingProject(project)
+      window.history.replaceState(null, "", window.location.pathname)
+    }
+  }, [canManageProjects, projectsQuery.data])
 
   return (
     <TooltipProvider>
@@ -554,22 +580,22 @@ function CreateProjectCard({
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle>{isEditing ? "Editar proyecto" : "Crear proyecto"}</CardTitle>
-        <CardDescription>
-          {isEditing
-            ? "Actualiza los datos principales del proyecto."
-            : "Completa los datos mínimos para registrar un nuevo proyecto."}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-baseline gap-4">
+        <Button variant="outline" type="button" onClick={onDone}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver
+        </Button>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{isEditing ? "Editar proyecto" : "Crear proyecto"}</CardTitle>
+          <CardDescription>
+            {isEditing
+              ? "Actualiza los datos principales del proyecto."
+              : "Completa los datos mínimos para registrar un nuevo proyecto."}
+          </CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-          <div className="md:col-span-2">
-            <Button variant="outline" type="button" onClick={onDone}>
-              <ArrowLeftIcon data-icon="inline-start" />
-              Volver
-            </Button>
-          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="project-name">Nombre del proyecto</Label>
             <Input
@@ -581,7 +607,6 @@ function CreateProjectCard({
                 setErrors((current) => ({ ...current, name: undefined }))
               }}
               aria-invalid={Boolean(errors.name)}
-              required
             />
             {errors.name ? <p className="text-sm text-destructive">{errors.name}</p> : null}
           </div>
@@ -634,7 +659,6 @@ function CreateProjectCard({
               setErrors((current) => ({ ...current, dateLimit: undefined }))
             }}
             error={errors.dateLimit}
-            required
           />
           <div className="flex flex-col gap-2">
             <Label>Estado</Label>
@@ -672,10 +696,9 @@ function CreateProjectCard({
               maxLength={PROJECT_DESCRIPTION_MAX_LENGTH}
               aria-invalid={Boolean(errors.description)}
             />
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>Máximo {PROJECT_DESCRIPTION_MAX_LENGTH} caracteres.</span>
-              <span>{descriptionRemaining} restantes</span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Máximo {PROJECT_DESCRIPTION_MAX_LENGTH} caracteres / {descriptionRemaining} restantes
+            </p>
             {errors.description ? <p className="text-sm text-destructive">{errors.description}</p> : null}
           </div>
           {createProject.isError || updateProject.isError ? (

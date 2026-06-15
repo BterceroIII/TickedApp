@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router"
 import {
   AlertCircleIcon,
   CheckCircle2Icon,
@@ -25,6 +26,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useCurrentUser } from "@/services/auth/auth.service"
 import type { InvoiceStatus } from "@/services/invoices/invoices.service"
 import type { ProjectStatus } from "@/services/projects/projects.service"
 import type { TicketPriority, TicketStatus } from "@/services/tickeds/tickeds.service"
@@ -64,6 +66,8 @@ const invoiceStatusConfig: Record<InvoiceStatus, BadgeConfig> = {
 
 export function App() {
   const dashboardQuery = useDashboardSummary()
+  const currentUserQuery = useCurrentUser()
+  const isAdmin = currentUserQuery.data?.role === "ADMIN"
 
   return (
     <TooltipProvider>
@@ -139,7 +143,12 @@ export function App() {
                       const status = projectStatusConfig[project.status]
 
                       return (
-                        <div key={project.id} className="rounded-xl border bg-background/60 p-4">
+                        <Link
+                          key={project.id}
+                          to="/projects"
+                          search={isAdmin ? { editProject: project.id } : { viewProject: project.id }}
+                          className="block rounded-xl border bg-background/60 p-4 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0 space-y-1">
                               <p className="truncate font-semibold">{project.name}</p>
@@ -160,7 +169,7 @@ export function App() {
                               {project.progress}%
                             </span>
                           </div>
-                        </div>
+                        </Link>
                       )
                     })
                   ) : (
@@ -184,7 +193,12 @@ export function App() {
                       const status = invoiceStatusConfig[invoice.status]
 
                       return (
-                        <div key={invoice.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                        <Link
+                          key={invoice.id}
+                          to="/invoices"
+                          search={{ editInvoice: invoice.id }}
+                          className="flex items-center justify-between gap-4 px-5 py-4 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                        >
                           <div className="min-w-0 space-y-1">
                             <p className="font-mono text-sm text-muted-foreground">{invoice.id}</p>
                             <p className="truncate font-semibold">{invoice.concept}</p>
@@ -195,7 +209,7 @@ export function App() {
                             </p>
                             <Badge variant="outline" className={status.className}>{status.label}</Badge>
                           </div>
-                        </div>
+                        </Link>
                       )
                     })
                   ) : (
@@ -222,7 +236,12 @@ export function App() {
                       const priority = priorityConfig[ticket.priority]
 
                       return (
-                        <div key={ticket.id} className="rounded-2xl border bg-background/80 p-4 shadow-sm md:rounded-xl md:p-3 md:shadow-none">
+                        <Link
+                          key={ticket.id}
+                          to="/tickeds"
+                          search={{ editTicked: ticket.id }}
+                          className="block rounded-2xl border bg-background/80 p-4 shadow-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 md:rounded-xl md:p-3 md:shadow-none"
+                        >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 space-y-2">
                               <span className="font-mono text-sm text-muted-foreground md:text-xs">
@@ -243,7 +262,7 @@ export function App() {
                             <span>·</span>
                             <span>{formatDate(ticket.createdAt)}</span>
                           </div>
-                        </div>
+                        </Link>
                       )
                     })
                   ) : (

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeftIcon,
   MessageSquareIcon,
@@ -82,6 +82,18 @@ export function TickedsPage() {
   const [showCreateTicket, setShowCreateTicket] = useState(false)
   const [editingTicked, setEditingTicked] = useState<Ticked | null>(null)
   const tickedsQuery = useTickeds()
+
+  useEffect(() => {
+    const editTickedId = new URLSearchParams(window.location.search).get("editTicked")
+    if (!editTickedId || !tickedsQuery.data?.length) return
+
+    const ticked = tickedsQuery.data.find((item) => item.id === editTickedId)
+    if (!ticked) return
+
+    setEditingTicked(ticked)
+    setShowCreateTicket(true)
+    window.history.replaceState(null, "", window.location.pathname)
+  }, [tickedsQuery.data])
 
   return (
     <TooltipProvider>
@@ -443,22 +455,22 @@ function CreateTicketCard({
 
   return (
     <Card className="rounded-2xl">
-      <CardHeader>
-        <CardTitle>{isEditing ? "Editar ticket" : "Crear ticket"}</CardTitle>
-        <CardDescription>
-          {isEditing
-            ? "Actualiza los datos principales del ticket"
-            : "Registra una nueva incidencia o solicitud"}
-        </CardDescription>
+      <CardHeader className="flex flex-row items-start justify-baseline gap-4">
+        <Button variant="outline" type="button" onClick={onDone}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Volver
+        </Button>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{isEditing ? "Editar ticket" : "Crear ticket"}</CardTitle>
+          <CardDescription>
+            {isEditing
+              ? "Actualiza los datos principales del ticket"
+              : "Registra una nueva incidencia o solicitud"}
+          </CardDescription>
+        </div>
       </CardHeader>
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-          <div className="md:col-span-2">
-            <Button variant="outline" type="button" onClick={onDone}>
-              <ArrowLeftIcon data-icon="inline-start" />
-              Volver
-            </Button>
-          </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="ticket-title">Título</Label>
             <Input
@@ -470,7 +482,6 @@ function CreateTicketCard({
                 setErrors((current) => ({ ...current, title: undefined }))
               }}
               aria-invalid={Boolean(errors.title)}
-              required
             />
             {errors.title ? <p className="text-sm text-destructive">{errors.title}</p> : null}
           </div>
@@ -583,7 +594,6 @@ function CreateTicketCard({
               setErrors((current) => ({ ...current, estimatedDate: undefined }))
             }}
             error={errors.estimatedDate}
-            required
           />
           <div className="flex flex-col gap-2">
             <Label>Estado</Label>
@@ -620,10 +630,9 @@ function CreateTicketCard({
               maxLength={TICKET_DESCRIPTION_MAX_LENGTH}
               aria-invalid={Boolean(errors.description)}
             />
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>Máximo {TICKET_DESCRIPTION_MAX_LENGTH} caracteres.</span>
-              <span>{descriptionRemaining} restantes</span>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Máximo {TICKET_DESCRIPTION_MAX_LENGTH} caracteres / {descriptionRemaining} restantes
+            </p>
             {errors.description ? <p className="text-sm text-destructive">{errors.description}</p> : null}
           </div>
           <div className="flex justify-end gap-2 md:col-span-2">

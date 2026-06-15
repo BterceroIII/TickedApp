@@ -14,6 +14,7 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
@@ -21,6 +22,10 @@ import { Input } from "@/components/ui/input"
 import { getApiErrorMessage } from "@/services/api"
 import { useLogin } from "@/services/auth/auth.service"
 import { dashboardQueryOptions } from "@/services/dashboard/dashboard.service"
+import { LoginSchema } from "../../schema"
+import { useState } from "react"
+
+type FormErrors = Partial<Record<"email" | "password", string>>
 
 export function LoginForm({
   className,
@@ -29,16 +34,29 @@ export function LoginForm({
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const loginMutation = useLogin()
+  const [errors, setErrors] = useState<FormErrors>({})
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
 
+    const result = LoginSchema.safeParse({
+      email: String(formData.get("email")),
+      password: String(formData.get("password")),
+    })
+
+    if (!result.success) {
+      setErrors(getFormErrors(result.error.issues))
+      return
+    }
+
+    setErrors({})
+
     loginMutation.mutate(
       {
-        email: String(formData.get("email")),
-        password: String(formData.get("password")),
+        email: result.data.email,
+        password: result.data.password,
       },
       {
         onSuccess: async () => {
@@ -77,8 +95,10 @@ export function LoginForm({
                   type="email"
                   placeholder="cliente@empresa.com"
                   autoComplete="email"
-                  required
+                  aria-invalid={Boolean(errors.email)}
+                  onChange={() => setErrors((current) => ({ ...current, email: undefined }))}
                 />
+                <FieldError>{errors.email}</FieldError>
               </Field>
               <Field>
                 <div className="flex items-center">
@@ -95,8 +115,10 @@ export function LoginForm({
                   name="password"
                   type="password"
                   autoComplete="current-password"
-                  required
+                  aria-invalid={Boolean(errors.password)}
+                  onChange={() => setErrors((current) => ({ ...current, password: undefined }))}
                 />
+                <FieldError>{errors.password}</FieldError>
               </Field>
               <Field>
                 <Button type="submit" disabled={loginMutation.isPending}>
@@ -112,4 +134,12 @@ export function LoginForm({
       </Card>
     </div>
   )
+}
+
+function getFormErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  return issues.reduce<FormErrors>((errors, issue) => {
+    const field = String(issue.path[0]) as keyof FormErrors
+    if (!errors[field]) errors[field] = issue.message
+    return errors
+  }, {})
 }

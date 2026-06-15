@@ -16,7 +16,6 @@ type DatePickerInputProps = {
   value: string
   onChange: (value: string) => void
   placeholder?: string
-  required?: boolean
   disablePast?: boolean
   error?: string
 }
@@ -27,7 +26,6 @@ export function DatePickerInput({
   value,
   onChange,
   placeholder = "Selecciona una fecha",
-  required,
   disablePast = true,
   error,
 }: DatePickerInputProps) {
@@ -45,7 +43,6 @@ export function DatePickerInput({
             type="button"
             variant="outline"
             className="h-8 w-full justify-between px-2.5 font-normal"
-            aria-required={required}
             aria-invalid={Boolean(error)}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
