@@ -1,9 +1,14 @@
 import { z } from "zod"
 
-const optionalTrimmedString = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-  z.string().trim().optional()
-)
+export const PROJECT_DESCRIPTION_MAX_LENGTH = 500
+export const TICKET_DESCRIPTION_MAX_LENGTH = 500
+export const INVOICE_AMOUNT_MAX = 9_999_999_999
+
+const optionalTrimmedString = (maxLength: number, message: string) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().trim().max(maxLength, { message }).optional()
+  )
 
 const requiredFutureDate = (message: string) =>
   z
@@ -80,7 +85,10 @@ export const CreateProjectSchema = z.object({
   responsible: z.string().min(1, { message: "Selecciona un usuario responsable" }).uuid({ message: "Selecciona un responsable válido" }),
   dateLimit: requiredFutureDate("Selecciona una fecha límite"),
   status: ProjectStatusSchema,
-  description: optionalTrimmedString,
+  description: optionalTrimmedString(
+    PROJECT_DESCRIPTION_MAX_LENGTH,
+    `La descripción del proyecto no puede superar ${PROJECT_DESCRIPTION_MAX_LENGTH} caracteres`
+  ),
 })
 
 export const TickedSchema = z.object({
@@ -110,12 +118,19 @@ export const CreateTickedSchema = z.object({
   status: TicketStatusSchema,
   estimatedDate: requiredFutureDate("Debe seleccionar una fecha válida"),
   assignedToId: z.string().min(1, { message: "Selecciona un usuario asignado" }).uuid({ message: "Selecciona un usuario válido" }),
-  description: optionalTrimmedString,
+  description: optionalTrimmedString(
+    TICKET_DESCRIPTION_MAX_LENGTH,
+    `La descripción del ticket no puede superar ${TICKET_DESCRIPTION_MAX_LENGTH} caracteres`
+  ),
 })
 
 export const CreateInvoiceSchema = z.object({
   concept: z.string().trim().min(1, { message: "El concepto no puede estar vacío" }),
-  amount: z.coerce.number().positive({ message: "El monto debe ser mayor a cero" }),
+  amount: z.coerce
+    .number()
+    .int({ message: "El monto debe ser un número entero" })
+    .positive({ message: "El monto debe ser mayor a cero" })
+    .max(INVOICE_AMOUNT_MAX, { message: `El monto máximo permitido es ${INVOICE_AMOUNT_MAX}` }),
   status: InvoiceStatusSchema,
   dueDate: requiredDate("Selecciona una fecha límite"),
   paidAt: z.string().optional(),

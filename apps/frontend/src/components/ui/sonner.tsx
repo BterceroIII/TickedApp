@@ -5,6 +5,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="system"
+      closeButton
       className="toaster group"
       icons={{
         success: (
@@ -34,6 +35,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          title: "first-letter:uppercase",
+          description: "first-letter:uppercase",
         },
       }}
       {...props}

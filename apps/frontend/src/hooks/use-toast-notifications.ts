@@ -20,11 +20,15 @@ function actionText(action: string, entity: string) {
   return `No se pudo ${action} ${entities[entity]?.masculine ? "el" : "la"} ${label}`
 }
 
+function capitalizeText(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
 export function useToastNotifications(entity: string) {
   return {
-    notifyCreated: () => toast.success(`${entityText(entity)} creado correctamente`),
-    notifyUpdated: () => toast.success(`${entityText(entity)} actualizado correctamente`),
-    notifyDeleted: () => toast.success(`${entityText(entity)} eliminado correctamente`),
+    notifyCreated: () => toast.success(capitalizeText(`${entityText(entity)} creado correctamente`)),
+    notifyUpdated: () => toast.success(capitalizeText(`${entityText(entity)} actualizado correctamente`)),
+    notifyDeleted: () => toast.success(capitalizeText(`${entityText(entity)} eliminado correctamente`)),
     notifyError: (action: string) => toast.error(actionText(action, entity)),
   }
 }

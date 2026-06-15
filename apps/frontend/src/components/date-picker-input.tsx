@@ -18,6 +18,7 @@ type DatePickerInputProps = {
   placeholder?: string
   required?: boolean
   disablePast?: boolean
+  error?: string
 }
 
 export function DatePickerInput({
@@ -28,6 +29,7 @@ export function DatePickerInput({
   placeholder = "Selecciona una fecha",
   required,
   disablePast = true,
+  error,
 }: DatePickerInputProps) {
   const [open, setOpen] = React.useState(false)
   const selectedDate = parseDateInputValue(value)
@@ -44,6 +46,7 @@ export function DatePickerInput({
             variant="outline"
             className="h-8 w-full justify-between px-2.5 font-normal"
             aria-required={required}
+            aria-invalid={Boolean(error)}
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault()
@@ -77,6 +80,7 @@ export function DatePickerInput({
           />
         </PopoverContent>
       </Popover>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   )
 }

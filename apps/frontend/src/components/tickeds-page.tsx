@@ -1,16 +1,15 @@
 import { useState } from "react"
 import {
+  ArrowLeftIcon,
   MessageSquareIcon,
   PlusIcon,
 } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { DatePickerInput } from "@/components/date-picker-input"
-import ErrorMessage, { type ActionState } from "@/components/error-message"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { TickedRowActions } from "@/components/ticked-row-actions"
 import { useToastNotifications } from "@/hooks/use-toast-notifications"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -55,18 +54,28 @@ import {
   useTickeds,
   useUpdateTicked,
 } from "@/services/tickeds/tickeds.service"
-import { CreateTickedSchema } from "../../schema"
+import { CreateTickedSchema, TICKET_DESCRIPTION_MAX_LENGTH } from "../../schema"
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
-  ABIERTO: { label: "Abierto", variant: "outline" },
-  EN_PROCESO: { label: "En proceso", variant: "default" },
-  RESUELTO: { label: "Resuelto", variant: "secondary" },
+type FormErrors = Partial<Record<string, string>>
+
+const statusConfig: Record<TicketStatus, { className: string }> = {
+  ABIERTO: { className: "border-blue-200 bg-blue-50 text-blue-700" },
+  EN_PROCESO: { className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  RESUELTO: { className: "border-green-200 bg-green-50 text-green-700" },
 }
 
-const priorityConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  ALTA: { label: "Alta", variant: "destructive" },
-  MEDIA: { label: "Media", variant: "default" },
-  BAJA: { label: "Baja", variant: "secondary" },
+const priorityConfig: Record<TicketPriority, { className: string }> = {
+  ALTA: { className: "border-red-200 bg-red-50 text-red-700" },
+  MEDIA: { className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  BAJA: { className: "border-green-200 bg-green-50 text-green-700" },
+}
+
+function getFormErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  return issues.reduce<FormErrors>((errors, issue) => {
+    const field = String(issue.path[0] ?? "form")
+    if (!errors[field]) errors[field] = issue.message
+    return errors
+  }, {})
 }
 
 export function TickedsPage() {
@@ -192,14 +201,6 @@ export function TickedsPage() {
                     ) : null}
                     {tickedsQuery.data?.length ? (
                       tickedsQuery.data.map((ticked) => {
-                        const status = statusConfig[ticked.status] ?? {
-                          label: ticked.status,
-                          variant: "outline",
-                        }
-                        const priority = priorityConfig[ticked.priority] ?? {
-                          label: ticked.priority,
-                          variant: "default",
-                        }
                         return (
                           <TableRow key={ticked.id}>
                             <TableCell className="px-4 py-5 font-mono text-xs font-semibold text-muted-foreground">
@@ -209,10 +210,10 @@ export function TickedsPage() {
                               {ticked.title}
                             </TableCell>
                             <TableCell className="px-4 py-5">
-                              <Badge variant={status.variant}>{status.label}</Badge>
+                              <TicketStatusSelect ticked={ticked} />
                             </TableCell>
                             <TableCell className="px-4 py-5">
-                              <Badge variant={priority.variant}>{priority.label}</Badge>
+                              <TicketPrioritySelect ticked={ticked} />
                             </TableCell>
                             <TableCell className="px-4 py-5 text-muted-foreground">
                               {getProjectName(ticked.projectId, ticked.project?.name, undefined)}
@@ -270,15 +271,6 @@ function TickedMobileCard({
   projectName: string
   onEdit: (ticked: Ticked) => void
 }) {
-  const status = statusConfig[ticked.status] ?? {
-    label: ticked.status,
-    variant: "outline" as const,
-  }
-  const priority = priorityConfig[ticked.priority] ?? {
-    label: ticked.priority,
-    variant: "default" as const,
-  }
-
   return (
     <Card className="rounded-2xl py-0 shadow-sm">
       <CardContent className="p-4">
@@ -292,12 +284,12 @@ function TickedMobileCard({
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Badge variant={status.variant}>{status.label}</Badge>
+            <TicketStatusSelect ticked={ticked} compact />
             <TickedRowActions ticked={ticked} onEdit={onEdit} />
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground">
-          <Badge variant={priority.variant}>{priority.label}</Badge>
+          <TicketPrioritySelect ticked={ticked} compact />
           <span>·</span>
           <span className="truncate">{projectName}</span>
           <span>·</span>
@@ -307,6 +299,78 @@ function TickedMobileCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function TicketStatusSelect({ ticked, compact = false }: { ticked: Ticked; compact?: boolean }) {
+  const updateTicked = useUpdateTicked()
+  const { notifyUpdated, notifyError } = useToastNotifications("ticket")
+  const status = statusConfig[ticked.status]
+
+  return (
+    <Select
+      value={ticked.status}
+      onValueChange={(value) => {
+        if (value === ticked.status) return
+        updateTicked.mutate(
+          { id: ticked.id, input: { status: value as TicketStatus } },
+          {
+            onSuccess: notifyUpdated,
+            onError: () => notifyError("actualizar"),
+          }
+        )
+      }}
+    >
+      <SelectTrigger
+        className={`${compact ? "h-7 w-28" : "h-8 w-32"} ${status.className}`}
+        disabled={updateTicked.isPending}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="ABIERTO">Abierto</SelectItem>
+          <SelectItem value="EN_PROCESO">En proceso</SelectItem>
+          <SelectItem value="RESUELTO">Resuelto</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
+
+function TicketPrioritySelect({ ticked, compact = false }: { ticked: Ticked; compact?: boolean }) {
+  const updateTicked = useUpdateTicked()
+  const { notifyUpdated, notifyError } = useToastNotifications("ticket")
+  const priority = priorityConfig[ticked.priority]
+
+  return (
+    <Select
+      value={ticked.priority}
+      onValueChange={(value) => {
+        if (value === ticked.priority) return
+        updateTicked.mutate(
+          { id: ticked.id, input: { priority: value as TicketPriority } },
+          {
+            onSuccess: notifyUpdated,
+            onError: () => notifyError("actualizar"),
+          }
+        )
+      }}
+    >
+      <SelectTrigger
+        className={`${compact ? "h-7 w-20" : "h-8 w-24"} ${priority.className}`}
+        disabled={updateTicked.isPending}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="BAJA">Baja</SelectItem>
+          <SelectItem value="MEDIA">Media</SelectItem>
+          <SelectItem value="ALTA">Alta</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -330,9 +394,10 @@ function CreateTicketCard({
   const projectsQuery = useProjects()
   const usersQuery = useUsers()
   const { notifyCreated, notifyUpdated, notifyError } = useToastNotifications("ticket")
-  const [actionState, setActionState] = useState<ActionState>({})
+  const [errors, setErrors] = useState<FormErrors>({})
   const isEditing = Boolean(ticked)
   const isSaving = isPending || updateTicked.isPending
+  const descriptionRemaining = TICKET_DESCRIPTION_MAX_LENGTH - description.length
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -347,13 +412,11 @@ function CreateTicketCard({
     })
 
     if (!result.success) {
-      setActionState({
-        succeeded: false,
-        message: result.error.issues[0]?.message ?? "Revisa los datos del ticket",
-        title: "Validación del formulario",
-      })
+      setErrors(getFormErrors(result.error.issues))
       return
     }
+
+    setErrors({})
 
     if (ticked) {
       updateTicked.mutate(
@@ -389,22 +452,38 @@ function CreateTicketCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ErrorMessage state={actionState} />
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="md:col-span-2">
+            <Button variant="outline" type="button" onClick={onDone}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Volver
+            </Button>
+          </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="ticket-title">Título</Label>
             <Input
               id="ticket-title"
               placeholder="Ej. Error al cargar módulo ventas"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value)
+                setErrors((current) => ({ ...current, title: undefined }))
+              }}
+              aria-invalid={Boolean(errors.title)}
               required
             />
+            {errors.title ? <p className="text-sm text-destructive">{errors.title}</p> : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="ticket-project">Proyecto</Label>
-            <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger id="ticket-project" className="w-full">
+            <Select
+              value={projectId}
+              onValueChange={(value) => {
+                setProjectId(value)
+                setErrors((current) => ({ ...current, projectId: undefined }))
+              }}
+            >
+              <SelectTrigger id="ticket-project" className="w-full" aria-invalid={Boolean(errors.projectId)}>
                 <SelectValue placeholder="Selecciona un proyecto" />
               </SelectTrigger>
               <SelectContent position="popper" align="start">
@@ -432,14 +511,18 @@ function CreateTicketCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.projectId ? <p className="text-sm text-destructive">{errors.projectId}</p> : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label>Prioridad</Label>
             <Select
               value={priority}
-              onValueChange={(value) => setPriority(value as TicketPriority)}
+              onValueChange={(value) => {
+                setPriority(value as TicketPriority)
+                setErrors((current) => ({ ...current, priority: undefined }))
+              }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-invalid={Boolean(errors.priority)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -450,11 +533,18 @@ function CreateTicketCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.priority ? <p className="text-sm text-destructive">{errors.priority}</p> : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label>Asignado a</Label>
-            <Select value={assignedToId} onValueChange={setAssignedToId}>
-              <SelectTrigger className="w-full">
+            <Select
+              value={assignedToId}
+              onValueChange={(value) => {
+                setAssignedToId(value)
+                setErrors((current) => ({ ...current, assignedToId: undefined }))
+              }}
+            >
+              <SelectTrigger className="w-full" aria-invalid={Boolean(errors.assignedToId)}>
                 <SelectValue placeholder="Selecciona un usuario" />
               </SelectTrigger>
               <SelectContent position="popper" align="start">
@@ -482,21 +572,29 @@ function CreateTicketCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.assignedToId ? <p className="text-sm text-destructive">{errors.assignedToId}</p> : null}
           </div>
           <DatePickerInput
             id="ticket-estimated-date"
             label="Fecha estimada"
             value={estimatedDate}
-            onChange={setEstimatedDate}
+            onChange={(value) => {
+              setEstimatedDate(value)
+              setErrors((current) => ({ ...current, estimatedDate: undefined }))
+            }}
+            error={errors.estimatedDate}
             required
           />
           <div className="flex flex-col gap-2">
             <Label>Estado</Label>
             <Select
               value={status}
-              onValueChange={(value) => setStatus(value as TicketStatus)}
+              onValueChange={(value) => {
+                setStatus(value as TicketStatus)
+                setErrors((current) => ({ ...current, status: undefined }))
+              }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-invalid={Boolean(errors.status)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -507,6 +605,7 @@ function CreateTicketCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.status ? <p className="text-sm text-destructive">{errors.status}</p> : null}
           </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="ticket-description">Descripción</Label>
@@ -514,8 +613,18 @@ function CreateTicketCard({
               id="ticket-description"
               placeholder="Describe el problema o solicitud"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                setErrors((current) => ({ ...current, description: undefined }))
+              }}
+              maxLength={TICKET_DESCRIPTION_MAX_LENGTH}
+              aria-invalid={Boolean(errors.description)}
             />
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>Máximo {TICKET_DESCRIPTION_MAX_LENGTH} caracteres.</span>
+              <span>{descriptionRemaining} restantes</span>
+            </div>
+            {errors.description ? <p className="text-sm text-destructive">{errors.description}</p> : null}
           </div>
           <div className="flex justify-end gap-2 md:col-span-2">
             <Button variant="outline" type="button" onClick={onDone}>

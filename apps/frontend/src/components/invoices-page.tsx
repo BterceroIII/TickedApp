@@ -1,12 +1,10 @@
 import { useState } from "react"
-import { FileTextIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { ArrowLeftIcon, FileTextIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { DatePickerInput } from "@/components/date-picker-input"
-import ErrorMessage, { type ActionState } from "@/components/error-message"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { useToastNotifications } from "@/hooks/use-toast-notifications"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -55,12 +53,22 @@ import {
   useRemoveInvoice,
   useUpdateInvoice,
 } from "@/services/invoices/invoices.service"
-import { CreateInvoiceSchema } from "../../schema"
+import { CreateInvoiceSchema, INVOICE_AMOUNT_MAX } from "../../schema"
 
-const statusConfig: Record<InvoiceStatus, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  PENDIENTE: { label: "Pendiente", variant: "outline" },
-  VENCIDA: { label: "Vencida", variant: "destructive" },
-  PAGADA: { label: "Pagada", variant: "secondary" },
+type FormErrors = Partial<Record<string, string>>
+
+const statusConfig: Record<InvoiceStatus, { className: string }> = {
+  PENDIENTE: { className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  VENCIDA: { className: "border-red-200 bg-red-50 text-red-700" },
+  PAGADA: { className: "border-green-200 bg-green-50 text-green-700" },
+}
+
+function getFormErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  return issues.reduce<FormErrors>((errors, issue) => {
+    const field = String(issue.path[0] ?? "form")
+    if (!errors[field]) errors[field] = issue.message
+    return errors
+  }, {})
 }
 
 export function InvoicesPage() {
@@ -93,7 +101,7 @@ export function InvoicesPage() {
                     setShowCreateInvoice((value) => !value)
                   }}
                 >
-                  <PlusIcon data-icon="inline-start" />
+                  <PlusIcon data-icon="inline-start item-center" />
                   <span className="hidden sm:inline">Crear factura</span>
                 </Button>
               </div>
@@ -201,8 +209,6 @@ function InvoiceRow({
   invoice: Invoice
   onEdit: (invoice: Invoice) => void
 }) {
-  const status = statusConfig[invoice.status]
-
   return (
     <TableRow>
       <TableCell className="px-4 py-5 font-mono text-xs font-semibold text-muted-foreground">
@@ -210,7 +216,7 @@ function InvoiceRow({
       </TableCell>
       <TableCell className="px-4 py-5 font-semibold">{invoice.concept}</TableCell>
       <TableCell className="px-4 py-5">
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <InvoiceStatusSelect invoice={invoice} />
       </TableCell>
       <TableCell className="px-4 py-5 text-muted-foreground">
         {formatDate(invoice.dueDate)}
@@ -232,8 +238,6 @@ function InvoiceMobileCard({
   invoice: Invoice
   onEdit: (invoice: Invoice) => void
 }) {
-  const status = statusConfig[invoice.status]
-
   return (
     <Card className="rounded-2xl py-0 shadow-sm">
       <CardContent className="p-4">
@@ -247,7 +251,7 @@ function InvoiceMobileCard({
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <Badge variant={status.variant}>{status.label}</Badge>
+            <InvoiceStatusSelect invoice={invoice} compact />
             <InvoiceActions invoice={invoice} onEdit={onEdit} />
           </div>
         </div>
@@ -261,6 +265,42 @@ function InvoiceMobileCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function InvoiceStatusSelect({ invoice, compact = false }: { invoice: Invoice; compact?: boolean }) {
+  const updateInvoice = useUpdateInvoice()
+  const { notifyUpdated, notifyError } = useToastNotifications("invoice")
+  const status = statusConfig[invoice.status]
+
+  return (
+    <Select
+      value={invoice.status}
+      onValueChange={(value) => {
+        if (value === invoice.status) return
+        updateInvoice.mutate(
+          { id: invoice.id, input: { status: value as InvoiceStatus } },
+          {
+            onSuccess: notifyUpdated,
+            onError: () => notifyError("actualizar"),
+          }
+        )
+      }}
+    >
+      <SelectTrigger
+        className={`${compact ? "h-7 w-28" : "h-8 w-28"} ${status.className}`}
+        disabled={updateInvoice.isPending}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+          <SelectItem value="VENCIDA">Vencida</SelectItem>
+          <SelectItem value="PAGADA">Pagada</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -320,7 +360,7 @@ function CreateInvoiceCard({
   const createInvoice = useCreateInvoice()
   const updateInvoice = useUpdateInvoice()
   const { notifyCreated, notifyUpdated, notifyError } = useToastNotifications("invoice")
-  const [actionState, setActionState] = useState<ActionState>({})
+  const [errors, setErrors] = useState<FormErrors>({})
   const isPending = createInvoice.isPending || updateInvoice.isPending
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -334,13 +374,11 @@ function CreateInvoiceCard({
     })
 
     if (!result.success) {
-      setActionState({
-        succeeded: false,
-        message: result.error.issues[0]?.message ?? "Revisa los datos de la factura",
-        title: "Validación del formulario",
-      })
+      setErrors(getFormErrors(result.error.issues))
       return
     }
+
+    setErrors({})
 
     if (invoice) {
       updateInvoice.mutate(
@@ -376,35 +414,55 @@ function CreateInvoiceCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ErrorMessage state={actionState} />
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="md:col-span-2">
+            <Button variant="outline" type="button" onClick={onDone}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Volver
+            </Button>
+          </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="invoice-concept">Concepto</Label>
             <Input
               id="invoice-concept"
               placeholder="Ej. Desarrollo Frontend Q2"
               value={concept}
-              onChange={(event) => setConcept(event.target.value)}
-              required
+              onChange={(event) => {
+                setConcept(event.target.value)
+                setErrors((current) => ({ ...current, concept: undefined }))
+              }}
+              aria-invalid={Boolean(errors.concept)}
             />
+            {errors.concept ? <p className="text-sm text-destructive">{errors.concept}</p> : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="invoice-amount">Monto</Label>
             <Input
               id="invoice-amount"
               type="number"
-              min="0"
-              step="0.01"
+              inputMode="numeric"
+              pattern="[0-9]*"
               placeholder="3200"
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={(event) => {
+                setAmount(sanitizeAmount(event.target.value))
+                setErrors((current) => ({ ...current, amount: undefined }))
+              }}
+              aria-invalid={Boolean(errors.amount)}
               required
             />
+            {errors.amount ? <p className="text-sm text-destructive">{errors.amount}</p> : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label>Estado</Label>
-            <Select value={status} onValueChange={(value) => setStatus(value as InvoiceStatus)}>
-              <SelectTrigger className="w-full">
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value as InvoiceStatus)
+                setErrors((current) => ({ ...current, status: undefined }))
+              }}
+            >
+              <SelectTrigger className="w-full" aria-invalid={Boolean(errors.status)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -415,12 +473,17 @@ function CreateInvoiceCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.status ? <p className="text-sm text-destructive">{errors.status}</p> : null}
           </div>
           <DatePickerInput
             id="invoice-due-date"
             label="Fecha límite"
             value={dueDate}
-            onChange={setDueDate}
+            onChange={(value) => {
+              setDueDate(value)
+              setErrors((current) => ({ ...current, dueDate: undefined }))
+            }}
+            error={errors.dueDate}
             required
           />
           <div className="flex items-end justify-end gap-2 md:col-span-2">
@@ -460,6 +523,16 @@ function MobileMessage({ children }: { children: React.ReactNode }) {
 
 function toDateInputValue(value: string | undefined) {
   return value ? new Date(value).toISOString().slice(0, 10) : ""
+}
+
+function sanitizeAmount(value: string) {
+  const digits = value.replace(/\D/g, "")
+  if (!digits) return ""
+
+  const amount = Number(digits)
+  if (!Number.isSafeInteger(amount)) return String(INVOICE_AMOUNT_MAX)
+
+  return String(Math.min(amount, INVOICE_AMOUNT_MAX))
 }
 
 function formatDate(value: string) {

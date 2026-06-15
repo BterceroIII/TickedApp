@@ -7,9 +7,12 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from 'class-validator';
 import { InvoiceStatus } from 'src/generated/prisma/client';
+
+export const INVOICE_AMOUNT_MAX = 9_999_999_999;
 
 export class CreateInvoiceDto {
   @ApiProperty({ description: 'Invoice concept or description' })
@@ -20,7 +23,8 @@ export class CreateInvoiceDto {
   @ApiProperty({ description: 'Invoice amount' })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @Min(1)
+  @Max(INVOICE_AMOUNT_MAX)
   amount: number;
 
   @ApiProperty({ description: 'Invoice status' })

@@ -8,7 +8,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -22,7 +21,7 @@ import {
 } from "@/components/ui/sidebar"
 import { getApiErrorMessage } from "@/services/api"
 import { useCurrentUser, useLogout } from "@/services/auth/auth.service"
-import { ChevronsUpDownIcon, LogOutIcon, SettingsIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
 
 function getUserInitials(name?: string, email?: string) {
   const source = name?.trim() || email?.trim() || "Usuario"
@@ -93,13 +92,6 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <SettingsIcon />
-                Perfil
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"

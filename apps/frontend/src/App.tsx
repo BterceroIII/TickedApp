@@ -32,29 +32,34 @@ import { useDashboardSummary } from "@/services/dashboard/dashboard.service"
 
 const metricIcons = [FolderKanbanIcon, TicketIcon, ReceiptTextIcon, CheckCircle2Icon]
 
-const projectStatusConfig: Record<ProjectStatus, { label: string; variant: "default" | "secondary" | "outline" }> = {
-  EN_PROGRESO: { label: "En progreso", variant: "default" },
-  EN_REVISION: { label: "En revisión", variant: "secondary" },
-  PLANIFICACION: { label: "Planificación", variant: "outline" },
-  COMPLETADO: { label: "Completado", variant: "secondary" },
+type BadgeConfig = {
+  label: string
+  className: string
 }
 
-const ticketStatusConfig: Record<TicketStatus, { label: string; variant: "default" | "secondary" | "outline" }> = {
-  ABIERTO: { label: "Abierto", variant: "outline" },
-  EN_PROCESO: { label: "En proceso", variant: "default" },
-  RESUELTO: { label: "Resuelto", variant: "secondary" },
+const projectStatusConfig: Record<ProjectStatus, BadgeConfig> = {
+  EN_PROGRESO: { label: "En progreso", className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  EN_REVISION: { label: "En revisión", className: "border-red-200 bg-red-50 text-yellow-700" },
+  PLANIFICACION: { label: "Planificación", className: "border-blue-200 bg-blue-50 text-blue-700" },
+  COMPLETADO: { label: "Completado", className: "border-green-200 bg-green-50 text-green-700" },
 }
 
-const priorityConfig: Record<TicketPriority, { label: string; variant: "default" | "secondary" | "destructive" }> = {
-  ALTA: { label: "Alta", variant: "destructive" },
-  MEDIA: { label: "Media", variant: "default" },
-  BAJA: { label: "Baja", variant: "secondary" },
+const ticketStatusConfig: Record<TicketStatus, BadgeConfig> = {
+  ABIERTO: { label: "Abierto", className: "border-blue-200 bg-blue-50 text-blue-700" },
+  EN_PROCESO: { label: "En proceso", className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  RESUELTO: { label: "Resuelto", className: "border-green-200 bg-green-50 text-green-700" },
 }
 
-const invoiceStatusConfig: Record<InvoiceStatus, { label: string; variant: "secondary" | "outline" | "destructive" }> = {
-  PENDIENTE: { label: "Pendiente", variant: "outline" },
-  VENCIDA: { label: "Vencida", variant: "destructive" },
-  PAGADA: { label: "Pagada", variant: "secondary" },
+const priorityConfig: Record<TicketPriority, BadgeConfig> = {
+  ALTA: { label: "Alta", className: "border-red-200 bg-red-50 text-red-700" },
+  MEDIA: { label: "Media", className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  BAJA: { label: "Baja", className: "border-green-200 bg-green-50 text-green-700" },
+}
+
+const invoiceStatusConfig: Record<InvoiceStatus, BadgeConfig> = {
+  PENDIENTE: { label: "Pendiente", className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  VENCIDA: { label: "Vencida", className: "border-red-200 bg-red-50 text-red-700" },
+  PAGADA: { label: "Pagada", className: "border-green-200 bg-green-50 text-green-700" },
 }
 
 export function App() {
@@ -142,7 +147,7 @@ export function App() {
                                 {project.resolvedTickets}/{project.totalTickets} tickets resueltos · vence {formatDate(project.dateLimit)}
                               </p>
                             </div>
-                            <Badge variant={status.variant}>{status.label}</Badge>
+                            <Badge variant="outline" className={status.className}>{status.label}</Badge>
                           </div>
                           <div className="mt-4 flex items-center gap-3">
                             <div className="h-2 flex-1 rounded-full bg-muted">
@@ -188,7 +193,7 @@ export function App() {
                             <p className="text-lg font-semibold tabular-nums">
                               {formatCurrency(invoice.amount)}
                             </p>
-                            <Badge variant={status.variant}>{status.label}</Badge>
+                            <Badge variant="outline" className={status.className}>{status.label}</Badge>
                           </div>
                         </div>
                       )
@@ -227,12 +232,12 @@ export function App() {
                                 {ticket.title}
                               </p>
                             </div>
-                            <Badge className="shrink-0" variant={status.variant}>
+                            <Badge variant="outline" className={`shrink-0 ${status.className}`}>
                               {status.label}
                             </Badge>
                           </div>
                           <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted-foreground md:mt-3 md:text-xs">
-                            <Badge variant={priority.variant}>{priority.label}</Badge>
+                            <Badge variant="outline" className={priority.className}>{priority.label}</Badge>
                             <span>·</span>
                             <span className="truncate">{ticket.projectName}</span>
                             <span>·</span>

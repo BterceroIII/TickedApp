@@ -1,5 +1,6 @@
 import { useState } from "react"
 import {
+  ArrowLeftIcon,
   FolderKanbanIcon,
   PlusIcon,
   UserIcon,
@@ -7,7 +8,6 @@ import {
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { DatePickerInput } from "@/components/date-picker-input"
-import ErrorMessage, { type ActionState } from "@/components/error-message"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { ProjectRowActions } from "@/components/project-row-actions"
 import { useToastNotifications } from "@/hooks/use-toast-notifications"
@@ -66,16 +66,26 @@ import {
   useProjectsProgress,
   useUpdateProject,
 } from "@/services/projects/projects.service"
-import { CreateProjectSchema } from "../../schema"
+import { CreateProjectSchema, PROJECT_DESCRIPTION_MAX_LENGTH } from "../../schema"
 
 const statusConfig: Record<
   ProjectStatus,
-  { label: string; variant: "default" | "secondary" | "outline" }
+  { label: string; className: string }
 > = {
-  EN_PROGRESO: { label: "En progreso", variant: "default" },
-  EN_REVISION: { label: "En revisión", variant: "secondary" },
-  PLANIFICACION: { label: "Planificación", variant: "outline" },
-  COMPLETADO: { label: "Completado", variant: "secondary" },
+  EN_PROGRESO: { label: "En progreso", className: "border-yellow-200 bg-yellow-50 text-yellow-700" },
+  EN_REVISION: { label: "En revisión", className: "border-red-200 bg-red-50 text-yellow-700" },
+  PLANIFICACION: { label: "Planificación", className: "border-blue-200 bg-blue-50 text-blue-700" },
+  COMPLETADO: { label: "Completado", className: "border-green-200 bg-green-50 text-green-700" },
+}
+
+type FormErrors = Partial<Record<string, string>>
+
+function getFormErrors(issues: { path: PropertyKey[]; message: string }[]) {
+  return issues.reduce<FormErrors>((errors, issue) => {
+    const field = String(issue.path[0] ?? "form")
+    if (!errors[field]) errors[field] = issue.message
+    return errors
+  }, {})
 }
 
 export function ProjectsPage() {
@@ -261,7 +271,6 @@ function ProjectMobileCard({
   onView: (project: Project) => void
   onEdit?: (project: Project) => void
 }) {
-  const status = statusConfig[project.status]
   const progressPercentage = progress?.percentage ?? 0
 
   return (
@@ -274,7 +283,7 @@ function ProjectMobileCard({
               <h2 className="truncate text-base font-semibold">{project.name}</h2>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
-              <Badge variant={status.variant}>{status.label}</Badge>
+              <ProjectStatusSelect project={project} disabled={!canManageProjects} compact />
               <span>Vence {formatDate(project.dateLimit)}</span>
             </div>
           </div>
@@ -314,7 +323,6 @@ function ProjectRow({
   onView: (project: Project) => void
   onEdit?: (project: Project) => void
 }) {
-  const status = statusConfig[project.status]
   const progressPercentage = progress?.percentage ?? 0
 
   return (
@@ -326,7 +334,7 @@ function ProjectRow({
         </div>
       </TableCell>
       <TableCell className="px-4 py-5">
-        <Badge variant={status.variant}>{status.label}</Badge>
+        <ProjectStatusSelect project={project} disabled={!canManageProjects} />
       </TableCell>
       <TableCell className="px-4 py-5 font-mono text-xs text-muted-foreground">
         {project.responsible ? getUserDisplayName(project.responsible) : "Sin responsable"}
@@ -356,6 +364,51 @@ function ProjectRow({
         />
       </TableCell>
     </TableRow>
+  )
+}
+
+function ProjectStatusSelect({
+  project,
+  disabled,
+  compact = false,
+}: {
+  project: Project
+  disabled: boolean
+  compact?: boolean
+}) {
+  const updateProject = useUpdateProject()
+  const { notifyUpdated, notifyError } = useToastNotifications("project")
+  const status = statusConfig[project.status]
+
+  return (
+    <Select
+      value={project.status}
+      onValueChange={(value) => {
+        if (value === project.status) return
+        updateProject.mutate(
+          { id: project.id, input: { status: value as ProjectStatus } },
+          {
+            onSuccess: notifyUpdated,
+            onError: () => notifyError("actualizar"),
+          }
+        )
+      }}
+    >
+      <SelectTrigger
+        className={`${compact ? "h-7 w-32" : "h-8 w-36"} ${status.className}`}
+        disabled={disabled || updateProject.isPending}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectItem value="PLANIFICACION">Planificación</SelectItem>
+          <SelectItem value="EN_PROGRESO">En progreso</SelectItem>
+          <SelectItem value="EN_REVISION">En revisión</SelectItem>
+          <SelectItem value="COMPLETADO">Completado</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   )
 }
 
@@ -389,7 +442,7 @@ function ProjectDetailSheet({
                   {progressPercentage}%
                 </p>
               </div>
-              {status ? <Badge variant={status.variant}>{status.label}</Badge> : null}
+              {status ? <Badge variant="outline" className={status.className}>{status.label}</Badge> : null}
             </div>
             <div className="h-2 rounded-full bg-muted">
               <div
@@ -453,9 +506,10 @@ function CreateProjectCard({
   const updateProject = useUpdateProject()
   const usersQuery = useUsers()
   const { notifyCreated, notifyUpdated, notifyError } = useToastNotifications("project")
-  const [actionState, setActionState] = useState<ActionState>({})
+  const [errors, setErrors] = useState<FormErrors>({})
   const isEditing = Boolean(project)
   const isPending = createProject.isPending || updateProject.isPending
+  const descriptionRemaining = PROJECT_DESCRIPTION_MAX_LENGTH - description.length
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -469,13 +523,11 @@ function CreateProjectCard({
     })
 
     if (!result.success) {
-      setActionState({
-        succeeded: false,
-        message: result.error.issues[0]?.message ?? "Revisa los datos del proyecto",
-        title: "Validación del formulario",
-      })
+      setErrors(getFormErrors(result.error.issues))
       return
     }
+
+    setErrors({})
 
     if (project) {
       updateProject.mutate(
@@ -511,22 +563,38 @@ function CreateProjectCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ErrorMessage state={actionState} />
         <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+          <div className="md:col-span-2">
+            <Button variant="outline" type="button" onClick={onDone}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Volver
+            </Button>
+          </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="project-name">Nombre del proyecto</Label>
             <Input
               id="project-name"
               placeholder="Ej. Portal Cliente"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value)
+                setErrors((current) => ({ ...current, name: undefined }))
+              }}
+              aria-invalid={Boolean(errors.name)}
               required
             />
+            {errors.name ? <p className="text-sm text-destructive">{errors.name}</p> : null}
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="project-responsible">Responsable</Label>
-            <Select value={responsible} onValueChange={setResponsible}>
-              <SelectTrigger id="project-responsible" className="w-full">
+            <Select
+              value={responsible}
+              onValueChange={(value) => {
+                setResponsible(value)
+                setErrors((current) => ({ ...current, responsible: undefined }))
+              }}
+            >
+              <SelectTrigger id="project-responsible" className="w-full" aria-invalid={Boolean(errors.responsible)}>
                 <UserIcon data-icon="inline-start" />
                 <SelectValue placeholder="Selecciona un responsable" />
               </SelectTrigger>
@@ -555,21 +623,29 @@ function CreateProjectCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.responsible ? <p className="text-sm text-destructive">{errors.responsible}</p> : null}
           </div>
           <DatePickerInput
             id="project-date"
             label="Fecha límite"
             value={dateLimit}
-            onChange={setDateLimit}
+            onChange={(value) => {
+              setDateLimit(value)
+              setErrors((current) => ({ ...current, dateLimit: undefined }))
+            }}
+            error={errors.dateLimit}
             required
           />
           <div className="flex flex-col gap-2">
             <Label>Estado</Label>
             <Select
               value={status}
-              onValueChange={(value) => setStatus(value as ProjectStatus)}
+              onValueChange={(value) => {
+                setStatus(value as ProjectStatus)
+                setErrors((current) => ({ ...current, status: undefined }))
+              }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-invalid={Boolean(errors.status)}>
                 <SelectValue placeholder="Selecciona un estado" />
               </SelectTrigger>
               <SelectContent>
@@ -581,6 +657,7 @@ function CreateProjectCard({
                 </SelectGroup>
               </SelectContent>
             </Select>
+            {errors.status ? <p className="text-sm text-destructive">{errors.status}</p> : null}
           </div>
           <div className="flex flex-col gap-2 md:col-span-2">
             <Label htmlFor="project-description">Descripción</Label>
@@ -588,8 +665,18 @@ function CreateProjectCard({
               id="project-description"
               placeholder="Describe el alcance principal del proyecto"
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => {
+                setDescription(event.target.value)
+                setErrors((current) => ({ ...current, description: undefined }))
+              }}
+              maxLength={PROJECT_DESCRIPTION_MAX_LENGTH}
+              aria-invalid={Boolean(errors.description)}
             />
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>Máximo {PROJECT_DESCRIPTION_MAX_LENGTH} caracteres.</span>
+              <span>{descriptionRemaining} restantes</span>
+            </div>
+            {errors.description ? <p className="text-sm text-destructive">{errors.description}</p> : null}
           </div>
           {createProject.isError || updateProject.isError ? (
             <p className="text-sm text-destructive md:col-span-2">

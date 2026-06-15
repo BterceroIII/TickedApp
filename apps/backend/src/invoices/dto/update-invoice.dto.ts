@@ -6,9 +6,11 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from 'class-validator';
 import { InvoiceStatus } from 'src/generated/prisma/client';
+import { INVOICE_AMOUNT_MAX } from './create-invoice.dto';
 
 export class UpdateInvoiceDto {
   @ApiPropertyOptional({ description: 'Invoice concept or description' })
@@ -19,7 +21,8 @@ export class UpdateInvoiceDto {
   @ApiPropertyOptional({ description: 'Invoice amount' })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
+  @Min(1)
+  @Max(INVOICE_AMOUNT_MAX)
   @IsOptional()
   amount?: number;
 

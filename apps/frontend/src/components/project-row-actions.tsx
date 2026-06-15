@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { EyeIcon, MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -26,15 +27,23 @@ export function ProjectRowActions({
 }) {
   const removeProject = useRemoveProject()
   const { notifyDeleted, notifyError } = useToastNotifications("project")
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  function handleDelete() {
+    removeProject.mutate(project.id, {
+      onSuccess: notifyDeleted,
+      onError: () => notifyError("eliminar"),
+    })
+  }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => !open && setConfirmingDelete(false)}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon-sm" aria-label="Abrir acciones">
           <MoreHorizontalIcon />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className={confirmingDelete ? "w-72" : undefined}>
         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => onView(project)}>
           <EyeIcon />
@@ -47,19 +56,47 @@ export function ProjectRowActions({
               Editar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={removeProject.isPending}
-              onClick={() =>
-                removeProject.mutate(project.id, {
-                  onSuccess: notifyDeleted,
-                  onError: () => notifyError("eliminar"),
-                })
-              }
-            >
-              <Trash2Icon />
-              Eliminar
-            </DropdownMenuItem>
+            {confirmingDelete ? (
+              <div className="flex flex-col gap-3 p-2">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">Eliminar proyecto</p>
+                  <p className="text-xs text-muted-foreground">
+                    Esta acción eliminará el proyecto "{project.name}" y no se puede deshacer.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={removeProject.isPending}
+                    onClick={handleDelete}
+                  >
+                    {removeProject.isPending ? "Eliminando..." : "Eliminar"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={removeProject.isPending}
+                onSelect={(event) => {
+                  event.preventDefault()
+                  setConfirmingDelete(true)
+                }}
+              >
+                <Trash2Icon />
+                Eliminar
+              </DropdownMenuItem>
+            )}
           </>
         ) : null}
       </DropdownMenuContent>
