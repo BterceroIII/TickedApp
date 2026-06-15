@@ -12,6 +12,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
+  app.getHttpAdapter().getInstance().set('trust proxy', process.env.TRUST_PROXY ?? 1);
   app.use(helmet());
   app.use(cookieParser());
 
