@@ -15,7 +15,7 @@ export class EmailsService {
 
   async sendConfirmationEmail(user: EmailUser): Promise<void> {
     await this.resend.emails.send({
-      from: 'TickedApp <onboarding@resend.dev>',
+      from: 'TickedApp <onboarding@btercero.dev>',
       to: user.email,
       subject: 'TickedApp - Confirma tu cuenta',
       html: `
@@ -34,7 +34,7 @@ export class EmailsService {
 
   async sendPasswordResetToken(user: EmailUser): Promise<void> {
     await this.resend.emails.send({
-      from: 'TickedApp <onboarding@resend.dev>',
+      from: 'TickedApp <onboarding@btercero.dev>',
       to: user.email,
       subject: 'TickedApp - Reestablece tu Password',
       html: `

@@ -86,8 +86,10 @@ export const SignupSchema = z
   })
 
 export const OtpSchema = z.object({
-  token: z.string().regex(/^\d{6}$/, { message: "Ingresa un código de 6 dígitos" }),
-})
+  token: z.string().regex(/^[A-Z0-9]{6}$/, {
+    message: "Ingresa un código válido de 6 caracteres (letras y números)",
+  }),
+});
 
 export const ProjectSchema = z.object({
   id: z.number(),

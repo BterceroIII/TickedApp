@@ -39,11 +39,15 @@ export function OtpForm({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    console.log(event)
+    console.log(otp)
 
     const result = OtpSchema.safeParse({ token: otp })
+    console.log(result.data)
 
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? "Ingresa un código válido")
+      console.log(result.error);
       return
     }
 
