@@ -1,53 +1,79 @@
-# Propuesta de esquema de datos y migración de CSV
+# Propuesta técnica de modelo de datos y migración desde CSV
 
-## 1. Objetivo
+**Proyecto:** Portal Cliente / TickedApp  
+**Objetivo:** Sustituir archivos CSV por una base de datos relacional auditable, consistente y preparada para evolución futura.  
+**Alcance:** Clientes, órdenes, servicios, pagos, proyectos, tickets y notificaciones.  
+**Fuera del alcance inicial:** Facturación formal e integración operativa con Odoo.
 
-Esta propuesta define una base de datos relacional para sustituir los archivos CSV usados actualmente como fuente de datos de clientes, órdenes y pagos.
+---
 
-El alcance inicial busca:
+## 1. Resumen ejecutivo
 
-- Migrar los datos existentes sin duplicarlos.
-- Eliminar redundancia innecesaria.
-- Mantener los módulos actuales del prototipo de la plataforma: usuarios, proyectos, tickets y notificaciones.
-- Conservar los identificadores personalizados presentes en los CSV.
-- Permitir que el proceso de importación pueda ejecutarse más de una vez de forma segura.
-- Evitar complejidad prematura.
+Actualmente la operación depende de archivos CSV para consultar clientes, órdenes y pagos. Este enfoque dificulta la trazabilidad, genera duplicidad de datos y aumenta el riesgo de errores al crecer la plataforma.
 
-Las facturas y la integración con Odoo quedan fuera de esta primera migración. Podrán incorporarse posteriormente sin reemplazar las entidades principales.
+Se propone migrar a un modelo relacional en PostgreSQL, gestionado desde Prisma, con una normalización pragmática: separar las entidades que hoy aparecen mezcladas en los CSV, pero sin sobrediseñar el MVP.
 
-## 2. Contexto de los datos
+La propuesta prioriza:
 
-Los archivos analizados contienen:
+- Preservar los identificadores actuales del negocio (`CS-*`, `OF-*`, `PAY-*`).
+- Separar órdenes, líneas de orden y pagos para reflejar correctamente la realidad comercial.
+- Evitar duplicidad de clientes, servicios e industrias.
+- Mantener compatibilidad con los módulos actuales del portal: usuarios, proyectos, tickets y notificaciones.
+- Ejecutar la importación de forma idempotente, es decir, sin duplicar información si se corre más de una vez.
+- Dejar una ruta clara para integrar facturas, contratos recurrentes y Odoo en fases posteriores.
 
-| Archivo | Contenido |
+La decisión más importante es no usar los códigos de pago importados (`PAY-*`) como clave primaria, porque existen códigos repetidos que representan movimientos financieros diferentes. En su lugar, cada pago tendrá un nuevo identificador interno (`PMT-*`) y conservará el código original como referencia histórica.
+
+---
+
+## 2. Situación actual
+
+### 2.1 Archivos analizados
+
+| Archivo | Contenido principal |
 |---|---|
 | `Clientes.csv` | Empresas, contactos, ubicación, industria y presencia digital |
 | `Ordenes.csv` | Órdenes comerciales y servicios contratados |
 | `Pagos.csv` | Pagos iniciales, complementarios, recurrentes y reembolsos |
-| `Complementos.csv` | Catálogos utilizados para validar servicios, agentes, industrias y otros valores |
+| `Complementos.csv` | Catálogos para servicios, agentes, industrias y valores controlados |
 
-Resultados importantes del análisis:
+### 2.2 Hallazgos relevantes
 
-- Existen 170 clientes con 170 identificadores únicos.
-- Existen 386 filas de órdenes, pero solamente 295 órdenes únicas.
-- 82 órdenes incluyen más de un servicio.
-- Existen 299 filas de pagos y 287 códigos de pago diferentes.
-- Hay 10 códigos de pago repetidos.
-- Algunos códigos de pago repetidos representan movimientos diferentes y válidos.
-- Existen 6 filas de pagos sin información de orden o cliente.
-- No se encontraron referencias huérfanas entre las órdenes válidas y los clientes.
-- No se encontraron referencias huérfanas entre los pagos válidos y sus órdenes.
-- Algunos correos están asociados con más de una empresa y no pueden utilizarse como identificadores únicos de clientes.
+| Métrica | Resultado |
+|---|---:|
+| Clientes | 170 |
+| Identificadores únicos de cliente | 170 |
+| Filas de órdenes | 386 |
+| Órdenes únicas | 295 |
+| Órdenes con más de un servicio | 82 |
+| Filas de pagos | 299 |
+| Códigos de pago diferentes | 287 |
+| Códigos de pago repetidos | 10 |
+| Filas de pago sin orden o cliente | 6 |
 
-La dificultad principal no es el volumen, sino separar correctamente la información repetida y preservar el historial financiero.
+Conclusiones del análisis:
 
-## 3. Criterios de diseño
+- El problema principal no es el volumen de datos, sino la estructura.
+- Una misma orden puede tener varios servicios, por eso debe separarse en cabecera y líneas.
+- Una orden puede tener varios movimientos financieros, por eso los pagos deben ser registros independientes.
+- Algunos correos se repiten entre empresas, por lo que no deben usarse como identificadores únicos de cliente.
+- No se encontraron referencias huérfanas entre órdenes válidas y clientes.
+- No se encontraron referencias huérfanas entre pagos válidos y órdenes.
+
+---
+
+## 3. Decisiones de diseño
 
 ### 3.1 Identificadores
 
-`User` conservará un UUID porque representa una identidad de autenticación y seguridad.
+Se recomienda mantener dos tipos de identificadores:
 
-Las entidades de negocio utilizarán identificadores personalizados de tipo `string`, administrados por un gestor de identificadores de la aplicación.
+| Tipo | Uso | Motivo |
+|---|---|---|
+| UUID | `User` | Seguridad, autenticación y menor exposición de secuencias internas |
+| String personalizado | Entidades de negocio | Trazabilidad con CSV y lectura operativa por el equipo |
+
+Ejemplos de identificadores propuestos:
 
 | Entidad | Ejemplo |
 |---|---|
@@ -61,294 +87,332 @@ Las entidades de negocio utilizarán identificadores personalizados de tipo `str
 | Ticket | `TICK-0001` |
 | Notification | `NTF-0001` |
 
-El identificador `PAY-*` importado desde el CSV no puede ser la clave primaria de `Payment`, debido a que aparece repetido en movimientos distintos. Se conservará en `legacyCode`.
+El código `PAY-*` importado desde CSV debe guardarse en `Payment.legacyCode`, pero no debe ser clave primaria ni único.
 
 ### 3.2 Normalización pragmática
 
-El esquema busca evitar duplicación importante sin fragmentar excesivamente la información.
+La normalización propuesta evita duplicidad importante sin convertir el MVP en una solución demasiado compleja.
 
-Por esta razón:
+Decisiones principales:
 
-- Los datos básicos de contacto y dirección permanecen dentro de `Customer`.
+- Los datos básicos de contacto y dirección permanecen en `Customer`.
 - País y ciudad se almacenan como texto durante el MVP.
-- Métodos de pago, tipos de movimiento y tipos de venta pueden comenzar como valores controlados o enums.
-- Las órdenes y sus líneas sí deben estar separadas porque una orden puede incluir varios servicios.
-- Los pagos deben ser registros independientes porque una orden puede recibir múltiples movimientos.
+- Industrias y servicios se separan en catálogos.
+- Las órdenes se dividen en `SalesOrder` y `SalesOrderLine`.
+- Los pagos se almacenan como movimientos independientes.
+- Facturas, contratos recurrentes y múltiples contactos quedan para fases posteriores.
 
 ### 3.3 Datos calculados
 
-No deben almacenarse campos que puedan derivarse de una fuente más confiable.
+No se deben persistir datos que puedan derivarse de una fuente más confiable.
 
-Ejemplos:
+| Dato | Fuente recomendada |
+|---|---|
+| Año y mes | Fecha de orden o pago |
+| Cliente de un pago | `Payment -> SalesOrder -> Customer` |
+| Empresa e industria de un pago | Relación con la orden y el cliente |
+| Saldo de una orden | `SalesOrder.total - SUM(Payment.amount)` |
 
-- Año y mes se calculan desde la fecha.
-- El cliente de un pago se obtiene mediante `Payment -> SalesOrder -> Customer`.
-- Empresa e industria no se repiten en órdenes ni pagos.
-- El saldo de una orden se calcula a partir de su total y sus pagos.
+---
 
-## 4. Diagrama de clases MVP
+## 4. Modelo de datos propuesto
+
+### 4.1 Entidades principales
+
+| Entidad | Responsabilidad |
+|---|---|
+| `User` | Identidad autenticable: clientes con acceso e integrantes internos |
+| `Customer` | Empresa cliente importada desde CSV |
+| `Industry` | Catálogo de industrias específicas y generales |
+| `Service` | Catálogo normalizado de servicios ofrecidos |
+| `SalesOrder` | Cabecera comercial de una orden |
+| `SalesOrderLine` | Servicio específico incluido en una orden |
+| `Payment` | Movimiento financiero asociado con una orden |
+| `Project` | Proyecto operativo del portal |
+| `Ticket` | Solicitud o incidencia asociada con un proyecto |
+| `Notification` | Notificación enviada a un usuario |
+
+### 4.2 Relaciones clave
+
+| Relación | Descripción |
+|---|---|
+| `Customer -> SalesOrder` | Un cliente puede tener muchas órdenes |
+| `SalesOrder -> SalesOrderLine` | Una orden contiene uno o varios servicios |
+| `Service -> SalesOrderLine` | Una línea referencia un servicio del catálogo |
+| `SalesOrder -> Payment` | Una orden puede recibir múltiples pagos |
+| `Customer -> Project` | Un proyecto pertenece a una empresa cliente |
+| `SalesOrder -> Project` | Una orden puede originar uno o más proyectos |
+| `Project -> Ticket` | Un proyecto puede contener varios tickets |
+| `User -> Notification` | Un usuario puede recibir notificaciones |
+
+### 4.3 Diagrama de clases MVP
 
 ```mermaid
 classDiagram
 direction LR
 
 class User {
-    +UUID id PK
-    +string name
-    +string email UK
-    +string passwordHash
-    +UserRole role
-    +boolean confirmed
-    +boolean active
-    +datetime createdAt
-    +datetime updatedAt
+  +UUID id PK
+  +string name
+  +string email UK
+  +string passwordHash
+  +UserRole role
+  +boolean confirmed
+  +boolean active
+  +datetime createdAt
+  +datetime updatedAt
 }
 
 class Customer {
-    +string id PK
-    +UUID userId FK, UK nullable
-    +string industryId FK nullable
-    +string companyName
-    +CustomerStatus status
-    +string contactName
-    +string primaryEmail
-    +string secondaryEmail
-    +string primaryPhone
-    +string secondaryPhone
-    +string address
-    +string postalCode
-    +string country
-    +string city
-    +string website
-    +string facebook
-    +string instagram
-    +date entryDate
-    +date lastOrderDate
-    +text notes
-    +datetime createdAt
-    +datetime updatedAt
+  +string id PK
+  +UUID userId FK, UK nullable
+  +string industryId FK nullable
+  +string companyName
+  +CustomerStatus status
+  +string contactName
+  +string primaryEmail
+  +string secondaryEmail
+  +string primaryPhone
+  +string secondaryPhone
+  +string address
+  +string postalCode
+  +string country
+  +string city
+  +string website
+  +string facebook
+  +string instagram
+  +date entryDate
+  +date lastOrderDate
+  +text notes
+  +datetime createdAt
+  +datetime updatedAt
 }
 
 class Industry {
-    +string id PK
-    +string specificName
-    +string generalName
-    +boolean active
+  +string id PK
+  +string specificName
+  +string generalName
+  +boolean active
 }
 
 class Service {
-    +string id PK
-    +string name UK
-    +boolean active
-    +datetime createdAt
-    +datetime updatedAt
+  +string id PK
+  +string name UK
+  +boolean active
+  +datetime createdAt
+  +datetime updatedAt
 }
 
 class SalesOrder {
-    +string id PK
-    +string customerId FK
-    +UUID closerUserId FK nullable
-    +UUID fronterUserId FK nullable
-    +date orderDate
-    +string saleType
-    +string paymentType
-    +string paymentMethod
-    +string currency
-    +decimal total
-    +decimal initialDeposit
-    +OrderStatus status
-    +datetime createdAt
-    +datetime updatedAt
+  +string id PK
+  +string customerId FK
+  +UUID closerUserId FK nullable
+  +UUID fronterUserId FK nullable
+  +date orderDate
+  +string saleType
+  +string paymentType
+  +string paymentMethod
+  +string currency
+  +decimal total
+  +decimal initialDeposit
+  +OrderStatus status
+  +datetime createdAt
+  +datetime updatedAt
 }
 
 class SalesOrderLine {
-    +string id PK
-    +string salesOrderId FK
-    +string serviceId FK
-    +int lineNumber
-    +string serviceType
-    +decimal serviceAmount
-    +decimal setupFee
-    +decimal lineTotal
-    +datetime createdAt
+  +string id PK
+  +string salesOrderId FK
+  +string serviceId FK
+  +int lineNumber
+  +string originalServiceName
+  +text serviceDetail nullable
+  +string serviceType
+  +decimal serviceAmount
+  +decimal setupFee
+  +decimal lineTotal
+  +datetime createdAt
 }
 
 class Payment {
-    +string id PK
-    +string legacyCode
-    +string salesOrderId FK
-    +date paymentDate
-    +string movementType
-    +int paymentNumber
-    +int recurrenceMonth
-    +decimal amount
-    +string sourceFingerprint UK
-    +datetime createdAt
+  +string id PK
+  +string legacyCode
+  +string salesOrderId FK
+  +date paymentDate
+  +string movementType
+  +int paymentNumber
+  +int recurrenceMonth
+  +decimal amount
+  +string sourceFingerprint UK
+  +datetime createdAt
 }
 
 class Project {
-    +string id PK
-    +string customerId FK
-    +string salesOrderId FK nullable
-    +UUID responsibleUserId FK
-    +string name
-    +text description
-    +ProjectStatus status
-    +date deadline
-    +datetime createdAt
-    +datetime updatedAt
+  +string id PK
+  +string customerId FK
+  +string salesOrderId FK nullable
+  +UUID responsibleUserId FK
+  +string name
+  +text description
+  +ProjectStatus status
+  +date deadline
+  +datetime createdAt
+  +datetime updatedAt
 }
 
 class Ticket {
-    +string id PK
-    +string projectId FK
-    +UUID createdByUserId FK
-    +UUID assignedToUserId FK nullable
-    +string title
-    +text description
-    +TicketStatus status
-    +TicketPriority priority
-    +date estimatedDate
-    +datetime createdAt
-    +datetime updatedAt
+  +string id PK
+  +string projectId FK
+  +UUID createdByUserId FK
+  +UUID assignedToUserId FK nullable
+  +string title
+  +text description
+  +TicketStatus status
+  +TicketPriority priority
+  +date estimatedDate
+  +datetime createdAt
+  +datetime updatedAt
 }
 
 class Notification {
-    +string id PK
-    +UUID userId FK
-    +string projectId FK nullable
-    +string ticketId FK nullable
-    +string title
-    +string message
-    +boolean read
-    +datetime createdAt
+  +string id PK
+  +UUID userId FK
+  +string projectId FK nullable
+  +string ticketId FK nullable
+  +string title
+  +string message
+  +boolean read
+  +datetime createdAt
 }
 
 Industry "1" --> "0..*" Customer : clasifica
 User "1" --> "0..1" Customer : cuenta cliente
 Customer "1" --> "0..*" SalesOrder : realiza
-
 User "1" --> "0..*" SalesOrder : cerrador
 User "1" --> "0..*" SalesOrder : fronteador
-
 SalesOrder "1" *-- "1..*" SalesOrderLine : contiene
 Service "1" --> "0..*" SalesOrderLine : referencia
 SalesOrder "1" --> "0..*" Payment : recibe
-
 Customer "1" --> "0..*" Project : posee
 SalesOrder "0..1" --> "0..*" Project : origina
 User "1" --> "0..*" Project : responsable
-
 Project "1" *-- "0..*" Ticket : contiene
 User "1" --> "0..*" Ticket : crea
 User "1" --> "0..*" Ticket : atiende
-
 User "1" --> "0..*" Notification : recibe
 Project "0..1" --> "0..*" Notification : referencia
 Ticket "0..1" --> "0..*" Notification : referencia
 ```
 
-## 5. Justificación de cada tabla
+---
+
+## 5. Justificación por entidad
 
 ### 5.1 `User`
 
-Representa exclusivamente una identidad que puede autenticarse o actuar dentro de la aplicación.
+Representa una identidad que puede autenticarse o actuar dentro de la aplicación.
 
 Se mantiene separada de `Customer` porque:
 
 - Una empresa puede existir sin tener acceso al portal.
 - Los usuarios internos también gestionan proyectos y tickets.
 - Las credenciales no deben mezclarse con información comercial importada.
-- El UUID evita exponer una secuencia predecible de cuentas.
+- El UUID evita exponer secuencias predecibles de cuentas.
 
-`Customer.userId` será nullable y único. Esto permite importar todos los clientes antes de crearles cuentas.
+`Customer.userId` será nullable y único. Esto permite importar todos los clientes antes de crear accesos al portal.
 
 ### 5.2 `Customer`
 
 Es la entidad principal para las empresas importadas desde `Clientes.csv`.
 
-Conserva el identificador original `CS-*` como clave primaria para:
+Usa el identificador original `CS-*` como clave primaria para conservar trazabilidad, simplificar enlaces con órdenes existentes y evitar una tabla de equivalencias durante el MVP.
 
-- Facilitar la trazabilidad con el CSV.
-- Simplificar el enlace con órdenes existentes.
-- Evitar una tabla adicional de equivalencias durante el MVP.
-
-Los datos de contacto se mantienen en esta tabla para reducir complejidad. Si en el futuro una empresa requiere múltiples contactos formales, se podrá extraer una tabla `CustomerContact`.
-
-No se debe imponer unicidad global a correos o teléfonos, ya que varios clientes pueden compartirlos.
+No se debe imponer unicidad global a correos o teléfonos, porque varios clientes pueden compartirlos.
 
 ### 5.3 `Industry`
 
-Evita repetir los nombres de industria específica y general en cada cliente.
+Evita repetir nombres de industria específica y general en cada cliente.
 
-Se recomienda una sola tabla en el MVP porque la relación entre industria específica y general ya está definida en los datos. Dividirla en dos tablas aportaría poco valor durante la primera migración.
-
-Restricción recomendada:
+Para el MVP se recomienda una sola tabla con restricción única sobre:
 
 ```text
 UNIQUE(specificName, generalName)
 ```
 
+Dividir industria específica y general en dos tablas aportaría poco valor en esta primera migración.
+
 ### 5.4 `Service`
 
-Representa el catálogo de servicios como SEO, PPC, Web Design y Social Media.
+Centraliza el catálogo oficial de servicios comerciales. Durante la migración no se debe crear un servicio nuevo por cada nombre histórico encontrado en el CSV.
 
-Es necesaria porque los nombres se repiten en muchas órdenes. Centralizarlos permite:
+El catálogo oficial queda limitado a:
 
-- Corregir nombres sin modificar cientos de líneas.
-- Evitar variaciones ortográficas.
-- Activar o desactivar servicios.
-- Usar el catálogo en formularios de la aplicación.
+```text
+E-commerce
+Servicio Webmaster
+Producción audiovisual
+Redes sociales
+SEO
+GBP
+Email marketing
+PPC
+Diseño web
+Sitio express
+Branding
+Otros
+```
 
-El nombre normalizado debe ser único.
+`Otros` agrupa servicios puntuales o históricos que no pertenecen al catálogo oficial.
+
+Beneficios:
+
+- Evita variaciones ortográficas.
+- Permite corregir nombres desde un solo lugar.
+- Facilita activar o desactivar servicios.
+- Sirve como catálogo para formularios futuros.
+- Evita que servicios únicos o excepcionales contaminen el catálogo principal.
 
 ### 5.5 `SalesOrder`
 
-Representa la cabecera de una orden.
+Representa la cabecera de una orden comercial.
 
-Contiene únicamente información común a toda la orden:
+Debe contener solo información común a toda la orden: cliente, fecha, cerrador, fronteador, tipo de venta, condición de pago, método de pago y total general.
 
-- Cliente.
-- Fecha.
-- Cerrador y fronteador.
-- Tipo de venta.
-- Condición y método de pago.
-- Total general.
-
-No debe repetirse por cada servicio. Esta separación transforma las 386 filas del CSV en 295 cabeceras de orden y sus correspondientes líneas.
-
-Los campos `closerUserId` y `fronterUserId` son nullable porque los nombres del CSV deberán vincularse con usuarios internos existentes. Una migración no debe fallar completamente si todavía no existe ese usuario.
+Esta separación permite transformar las 386 filas del CSV en 295 órdenes únicas y sus líneas correspondientes.
 
 ### 5.6 `SalesOrderLine`
 
 Representa cada servicio incluido en una orden.
 
-Es indispensable porque 82 órdenes contienen más de un servicio.
-
-La combinación siguiente debe ser única:
+Es necesaria porque 82 órdenes contienen más de un servicio. La combinación recomendada debe ser única:
 
 ```text
 UNIQUE(salesOrderId, lineNumber)
 ```
 
-El total de la línea se conserva porque contiene el precio comercial acordado en ese momento. No debe depender del precio actual del catálogo de servicios.
+El precio de la línea debe conservarse como valor histórico acordado, sin depender del precio actual del catálogo.
+
+Cuando una línea se clasifica como `Otros`, `SalesOrderLine.originalServiceName` y `SalesOrderLine.serviceDetail` deben conservar el nombre original del CSV. Ese detalle puede usarse posteriormente en la descripción operativa de la orden o del proyecto generado.
 
 ### 5.7 `Payment`
 
-Representa un movimiento financiero asociado con una orden.
+Representa cada movimiento financiero asociado con una orden: pago inicial, complemento, recurrencia o reembolso.
 
-Cada pago inicial, complemento, recurrencia o reembolso debe conservarse como un movimiento separado. No se deben sobrescribir pagos anteriores.
+Cada movimiento debe conservarse por separado. No se deben sobrescribir pagos anteriores.
 
-`legacyCode` almacena el código `PAY-*` del CSV, pero no será único porque se encontraron códigos reutilizados.
+Campos clave:
 
-`sourceFingerprint` será único y permitirá detectar si una fila ya fue importada.
+| Campo | Uso |
+|---|---|
+| `id` | Nuevo identificador interno `PMT-*` |
+| `legacyCode` | Código `PAY-*` original del CSV, no único |
+| `sourceFingerprint` | Huella única para evitar duplicados de importación |
 
-Una huella recomendada es:
+Huella recomendada:
 
 ```text
 SHA-256(
   archivo
-  + numeroFila
   + legacyCode
   + salesOrderId
   + paymentDate
@@ -359,44 +423,24 @@ SHA-256(
 )
 ```
 
-Si el número de fila puede cambiar entre exportaciones, debe excluirse y utilizarse una combinación estable de los demás campos.
+Si el número de fila del CSV es estable, puede incluirse. Si puede cambiar entre exportaciones, debe excluirse.
 
-El cliente, la empresa, la industria, el total de la orden y el saldo no deben repetirse en esta tabla.
+### 5.8 `Project`, `Ticket` y `Notification`
 
-### 5.8 `Project`
+Estas entidades conservan los módulos actuales del portal.
 
-Mantiene el módulo actual de proyectos de TickedApp.
+Cambios recomendados:
 
-Se agrega `customerId` para que el proyecto pertenezca a una empresa real y no solamente a un usuario responsable.
+- `Project` debe pertenecer a un `Customer` real.
+- `Project.salesOrderId` será nullable, porque no toda orden necesariamente genera un proyecto.
+- `Ticket` debe distinguir entre usuario creador y usuario asignado.
+- `Notification` puede referenciar opcionalmente un proyecto o ticket.
 
-`salesOrderId` será nullable porque:
+---
 
-- Algunos proyectos pueden crearse manualmente.
-- No toda orden necesita producir un proyecto.
-- La regla de creación puede definirse posteriormente según el servicio.
+## 6. Reglas de integridad y restricciones
 
-`responsibleUserId` conserva la relación con el usuario interno responsable.
-
-### 5.9 `Ticket`
-
-Mantiene el módulo actual denominado `Ticked` en parte del código. Se recomienda estandarizar su nombre como `Ticket`.
-
-Cada ticket pertenece a un proyecto y distingue:
-
-- El usuario que creó la solicitud.
-- El usuario interno asignado para atenderla.
-
-Esta separación evita confundir al cliente que reporta un problema con el empleado que lo resuelve.
-
-### 5.10 `Notification`
-
-Mantiene el sistema actual de notificaciones.
-
-Puede referenciar opcionalmente un proyecto o ticket. No necesita almacenar datos comerciales de clientes, órdenes o pagos.
-
-## 6. Restricciones recomendadas
-
-### Claves únicas
+### 6.1 Claves únicas recomendadas
 
 ```text
 User.email
@@ -407,7 +451,7 @@ SalesOrderLine(salesOrderId, lineNumber)
 Payment.sourceFingerprint
 ```
 
-No deben ser únicos:
+### 6.2 Campos que no deben ser únicos
 
 ```text
 Customer.primaryEmail
@@ -415,29 +459,31 @@ Customer.primaryPhone
 Payment.legacyCode
 ```
 
-### Integridad referencial
+### 6.3 Integridad referencial
 
 - No permitir una orden sin cliente.
 - No permitir una línea sin orden o servicio.
 - No permitir un pago sin una orden válida.
 - No permitir un proyecto sin cliente.
 - No permitir un ticket sin proyecto.
-- No eliminar físicamente clientes que tengan órdenes, pagos o proyectos.
-- Utilizar estados inactivos o archivados para conservar el historial.
+- No eliminar físicamente clientes con órdenes, pagos o proyectos.
+- Usar estados inactivos o archivados para conservar historial.
 
-### Tipos monetarios
+### 6.4 Tipos monetarios
 
-Todos los importes deben usar:
+Todos los importes deben almacenarse como:
 
 ```text
 DECIMAL(14, 2)
 ```
 
-No se debe utilizar `FLOAT` ni almacenar símbolos monetarios.
+No se debe usar `FLOAT` ni almacenar símbolos monetarios.
 
-## 7. Reglas de transformación
+---
 
-### Fechas
+## 7. Reglas de transformación de datos
+
+### 7.1 Fechas
 
 Los valores como `01-02-2024` deben interpretarse explícitamente como:
 
@@ -445,11 +491,11 @@ Los valores como `01-02-2024` deben interpretarse explícitamente como:
 MM-DD-YYYY
 ```
 
-Después deben almacenarse como `DATE`, no como texto.
+Luego deben almacenarse como `DATE`, no como texto.
 
-### Importes
+### 7.2 Importes
 
-Antes de persistir:
+Antes de persistir, los importes deben normalizarse:
 
 ```text
 "$1,079.00" -> 1079.00
@@ -457,38 +503,75 @@ Antes de persistir:
 "$480.0"    -> 480.00
 ```
 
-### Textos
+### 7.3 Textos
 
-- Eliminar espacios al inicio y al final.
+- Eliminar espacios al inicio y final.
 - Convertir cadenas vacías a `NULL`.
 - Mantener el texto original visible.
-- Crear una versión normalizada solamente cuando sea necesaria para comparación.
+- Crear una versión normalizada solo cuando sea necesaria para comparación.
 - No eliminar acentos de los valores mostrados.
 
-### Servicios
+### 7.4 Servicios
 
-Los nombres deben normalizarse antes de buscar o crear un `Service`.
+Los nombres de servicios deben normalizarse antes de buscar registros en `Service`, pero el catálogo final no debe crecer con cada nombre histórico del CSV.
 
-Ejemplo:
+El catálogo oficial de servicios es cerrado y debe contener únicamente:
 
 ```text
-"Limpieza de Malware "
-"Limpieza de Malware"
+E-commerce
+Servicio Webmaster
+Producción audiovisual
+Redes sociales
+SEO
+GBP
+Email marketing
+PPC
+Diseño web
+Sitio express
+Branding
+Otros
 ```
 
-Ambos deben apuntar al mismo servicio.
+Los servicios históricos que no correspondan a una categoría oficial deben asociarse a `Otros`. En ese caso, la línea debe conservar el valor original del CSV en `SalesOrderLine.originalServiceName` y `SalesOrderLine.serviceDetail` para poder mostrarlo luego en la descripción operativa de la orden o del proyecto.
 
-### Usuarios internos
+Mapeo aplicado durante la migración:
 
-Los nombres de cerradores y fronteadores se deben comparar contra usuarios internos usando un nombre normalizado.
+| Valor en CSV | Servicio oficial |
+|---|---|
+| `Web Design` | `Diseño web` |
+| `Web Master Services` | `Servicio Webmaster` |
+| `Social Media` | `Redes sociales` |
+| `GMB` | `GBP` |
+| `Website Express` | `Sitio express` |
+| `Producción Video` | `Producción audiovisual` |
+| `WooCommerce` | `E-commerce` |
+| `Manual de Marca` | `Branding` |
+| Cualquier otro servicio no listado | `Otros` |
 
-Si no existe una coincidencia:
+Ejemplos:
+
+```text
+"Web Design" -> Service.name = "Diseño web"
+"Limpieza de Malware " -> Service.name = "Otros"
+"Limpieza de Malware " -> SalesOrderLine.originalServiceName = "Limpieza de Malware"
+"Limpieza de Malware " -> SalesOrderLine.serviceDetail = "Limpieza de Malware"
+```
+
+Esta regla permite mantener un catálogo limpio para formularios y reportes, sin perder trazabilidad del servicio específico vendido históricamente.
+
+### 7.5 Usuarios internos
+
+Los nombres de cerradores y fronteadores deben compararse contra usuarios internos usando un nombre normalizado.
+
+Si no hay coincidencia:
 
 - La orden se importa.
 - La relación queda temporalmente en `NULL`.
 - Se registra una advertencia para revisión.
 
-No se recomienda crear automáticamente una cuenta con contraseña para cada nombre encontrado en el CSV.
+No se recomienda crear cuentas automáticamente con contraseña para cada nombre encontrado en el CSV.
+
+---
 
 ## 8. Estrategia de migración
 
@@ -500,7 +583,7 @@ No se recomienda crear automáticamente una cuenta con contraseña para cada nom
 
 ### Fase 2: staging
 
-Se recomienda cargar primero cada fila en tablas temporales o de staging:
+Cargar primero cada fila en tablas temporales o de staging:
 
 ```text
 staging_customers
@@ -516,15 +599,17 @@ Cada fila debe conservar:
 - Estado de validación.
 - Mensaje de error, si aplica.
 
-Estas tablas pueden eliminarse cuando la migración haya sido aceptada, aunque conservarlas temporalmente facilita la auditoría.
+Estas tablas pueden eliminarse después de la aceptación, aunque conservarlas temporalmente facilita auditoría.
 
 ### Fase 3: catálogos
 
 Importar primero:
 
 1. Industrias.
-2. Servicios.
-3. Usuarios internos ya existentes o mapeados.
+2. Servicios oficiales.
+3. Usuarios internos existentes o mapeados.
+
+El catálogo `Service` debe inicializarse con las 11 categorías oficiales más `Otros`. Los servicios no oficiales detectados en `Complementos.csv` u `Ordenes.csv` no deben crearse como nuevos registros de `Service`; deben mapearse a una categoría oficial o a `Otros`.
 
 ### Fase 4: clientes
 
@@ -537,7 +622,7 @@ si CS-0001 no existe -> crear
 si CS-0001 existe    -> actualizar campos permitidos
 ```
 
-No vincular automáticamente cuentas `User` únicamente por coincidencia de correo. El vínculo debe confirmarse para evitar asociar una cuenta con la empresa incorrecta.
+No se deben vincular cuentas `User` automáticamente solo por coincidencia de correo.
 
 ### Fase 5: órdenes y líneas
 
@@ -547,10 +632,12 @@ Por cada grupo:
 
 1. Validar que cliente, fecha y total general sean consistentes.
 2. Crear o actualizar una sola `SalesOrder`.
-3. Crear una `SalesOrderLine` por cada servicio.
+3. Crear una `SalesOrderLine` por cada servicio vendido.
 4. Asignar `lineNumber` según el orden estable de aparición.
+5. Asociar cada línea al servicio oficial normalizado.
+6. Si la línea cae en `Otros`, conservar el nombre original del CSV en `originalServiceName` y `serviceDetail`.
 
-La importación debe validar:
+Validación recomendada:
 
 ```text
 SUM(lineTotal) ≈ SalesOrder.total
@@ -566,14 +653,14 @@ Por cada fila válida:
 2. Normalizar fecha e importe.
 3. Generar `sourceFingerprint`.
 4. Omitir la fila si la huella ya existe.
-5. Crear un `Payment` con un nuevo identificador `PMT-*`.
+5. Crear un `Payment` con identificador `PMT-*`.
 6. Conservar el `PAY-*` original en `legacyCode`.
 
 Las 6 filas sin orden o cliente deben enviarse a un reporte de incidencias y no insertarse como pagos válidos.
 
 ### Fase 7: conciliación
 
-Antes de aprobar la migración se deben comparar:
+Antes de aprobar la migración se deben comparar los conteos esperados:
 
 | Validación | Resultado esperado |
 |---|---:|
@@ -590,22 +677,26 @@ paidAmount = SUM(Payment.amount)
 balance = SalesOrder.total - paidAmount
 ```
 
-Los totales deben compararse con los datos históricos, pero no se debe asumir que todas las órdenes posteriores a enero de 2025 tienen pagos registrados, porque el CSV de pagos está incompleto respecto al de órdenes.
+Los totales deben compararse con los datos históricos. No se debe asumir que todas las órdenes posteriores a enero de 2025 tienen pagos registrados, porque el CSV de pagos está incompleto respecto al CSV de órdenes.
+
+---
 
 ## 9. Idempotencia
 
-Una migración idempotente puede ejecutarse nuevamente sin duplicar información.
+La migración debe poder ejecutarse nuevamente sin duplicar información.
 
-Reglas:
+Reglas propuestas:
 
-- `Customer`: upsert por `id`.
-- `Industry`: upsert por industria específica y general normalizadas.
-- `Service`: upsert por nombre normalizado.
-- `SalesOrder`: upsert por `id`.
-- `SalesOrderLine`: upsert por orden y número de línea.
-- `Payment`: crear únicamente si `sourceFingerprint` no existe.
+| Entidad | Estrategia |
+|---|---|
+| `Customer` | `upsert` por `id` |
+| `Industry` | `upsert` por industria específica y general normalizadas |
+| `Service` | `upsert` solo por nombre oficial |
+| `SalesOrder` | `upsert` por `id` |
+| `SalesOrderLine` | `upsert` por orden y número de línea |
+| `Payment` | Crear solo si `sourceFingerprint` no existe |
 
-Cada ejecución debería producir un resumen:
+Cada ejecución debe producir un resumen:
 
 ```text
 creados
@@ -615,36 +706,28 @@ rechazados
 advertencias
 ```
 
+---
+
 ## 10. Recomendaciones para Prisma y PostgreSQL
 
-### Nombres
+### 10.1 Convenciones de nombres
 
-Utilizar nombres de modelos en singular y tablas en plural mediante `@@map`.
-
-Ejemplo:
+Usar modelos Prisma en singular y tablas PostgreSQL en plural mediante `@@map`.
 
 ```prisma
 model Customer {
-  id          String @id @db.VarChar(20)
+  id          String @id @db.VarChar(32)
   companyName String @db.VarChar(180)
 
   @@map("customers")
 }
 ```
 
-### Longitud de identificadores
+### 10.2 Longitud de identificadores
 
-Aunque los códigos actuales son cortos, se recomienda reservar:
+Reservar `VARCHAR(32)` para identificadores de negocio. Aunque los códigos actuales son cortos, esto permite incorporar prefijos, años o secuencias más largas.
 
-```text
-VARCHAR(32)
-```
-
-Esto permite incorporar año, prefijos o secuencias más largas.
-
-### Índices
-
-Crear índices en:
+### 10.3 Índices recomendados
 
 ```text
 customers.industry_id
@@ -659,9 +742,9 @@ tickets.assigned_to_user_id
 notifications.user_id
 ```
 
-### Transacciones
+### 10.4 Transacciones
 
-Importar cada unidad lógica dentro de una transacción:
+Cada unidad lógica debe importarse dentro de una transacción:
 
 - Un cliente.
 - Una orden junto con todas sus líneas.
@@ -669,7 +752,7 @@ Importar cada unidad lógica dentro de una transacción:
 
 Si falla una línea de una orden, no debe quedar una cabecera incompleta.
 
-### Borrado
+### 10.5 Borrado y conservación histórica
 
 Evitar `ON DELETE CASCADE` desde clientes hacia órdenes o pagos.
 
@@ -680,11 +763,27 @@ Puede utilizarse cascade en:
 
 Para información histórica y financiera se recomienda usar `RESTRICT` o archivado lógico.
 
-## 11. Evolución futura
+---
 
-### Facturas
+## 11. Riesgos y mitigaciones
 
-Cuando el módulo sea necesario, puede añadirse:
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Códigos de pago repetidos | Duplicidad o pérdida de movimientos | Usar `Payment.id` nuevo y `legacyCode` solo como referencia |
+| Fechas ambiguas | Importes asociados a periodos incorrectos | Definir formato `MM-DD-YYYY` antes de migrar |
+| Correos compartidos entre empresas | Asociación incorrecta de usuarios | No vincular `User` por correo sin validación |
+| Pagos sin orden o cliente | Registros financieros inválidos | Enviar a reporte de incidencias |
+| Usuarios internos no encontrados | Órdenes incompletas | Importar orden con usuario nullable y advertencia |
+| Diferencias entre total de orden y líneas | Conciliación incorrecta | Reportar diferencias y revisarlas manualmente |
+| Servicios históricos no oficiales | Catálogo difícil de mantener | Mapear a `Otros` y conservar detalle original en `SalesOrderLine` |
+
+---
+
+## 12. Evolución futura
+
+### 12.1 Facturas
+
+Cuando el módulo sea necesario, se puede añadir:
 
 ```text
 Customer -> Invoice
@@ -694,9 +793,22 @@ Invoice -> PaymentAllocation <- Payment
 
 No es necesario introducir estas tablas para migrar los CSV actuales.
 
-### Múltiples contactos
+### 12.2 Integración con Odoo
 
-Si una empresa necesita varios contactos estructurados, los campos de contacto de `Customer` pueden migrarse posteriormente a:
+La integración puede incorporarse después de estabilizar el modelo base.
+
+Sincronización recomendada:
+
+- Clientes desde `Customer`.
+- Órdenes desde `SalesOrder` y `SalesOrderLine`.
+- Pagos desde `Payment`.
+- Facturas cuando exista el módulo `Invoice`.
+
+La comunicación debería manejarse con procesos controlados y trazables, no con escritura directa no auditada sobre las tablas operativas.
+
+### 12.3 Múltiples contactos
+
+Si una empresa necesita varios contactos estructurados, los campos actuales de `Customer` pueden migrarse posteriormente a:
 
 ```text
 CustomerContact
@@ -705,22 +817,25 @@ ContactChannel
 
 Esta evolución no obliga a cambiar órdenes, pagos, proyectos o tickets.
 
-### Contratos recurrentes
+### 12.4 Contratos recurrentes
 
-Los servicios mensuales podrían generar una entidad `ServiceContract` en una fase posterior. Para el MVP, la recurrencia histórica puede identificarse mediante las líneas de orden y los movimientos de pago.
+Los servicios mensuales podrían generar una entidad `ServiceContract` en una fase posterior. Para el MVP, la recurrencia histórica puede identificarse mediante líneas de orden y movimientos de pago.
 
-## 12. Conclusión
+---
 
-El esquema propuesto reduce la migración a las entidades necesarias y conserva los módulos funcionales de TickedApp.
+## 13. Conclusión
 
-Las decisiones esenciales son:
+El esquema propuesto permite abandonar los CSV como fuente operativa sin introducir complejidad innecesaria.
 
-- UUID únicamente para identidades autenticadas.
+Las decisiones técnicas esenciales son:
+
+- UUID solo para identidades autenticadas.
 - Identificadores personalizados para entidades de negocio.
-- Separación obligatoria entre órdenes y líneas.
+- Separación obligatoria entre órdenes y líneas de orden.
+- Catálogo oficial de servicios con `Otros` para excepciones históricas.
 - Pagos independientes con huella única de importación.
 - Cliente como propietario real de órdenes y proyectos.
 - Usuario como identidad de acceso y operación.
-- Migración por staging, validación, upsert y conciliación.
+- Migración por staging, validación, `upsert` y conciliación.
 
-Esta estructura permite abandonar los CSV como base operativa sin introducir una arquitectura excesivamente compleja y deja una ruta clara para añadir facturas, contactos avanzados y otras integraciones en fases posteriores.
+Esta estructura mejora trazabilidad, reduce duplicidad, conserva el historial financiero y deja preparada la plataforma para integrar facturación, Odoo, múltiples contactos y contratos recurrentes en fases posteriores.
